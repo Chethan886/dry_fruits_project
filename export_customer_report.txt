@@ -1,0 +1,102 @@
+def export_customer_report(request, start_date, end_date, customer_type, sort_by, include_inactive):
+    """Export customer summary report to Excel."""
+    # Start with all customers
+    customers = Customer.objects.all()
+    
+    # Filter by customer type if specified
+    if customer_type != 'all':
+        customers = customers.filter(customer_type=customer_type)
+    
+    # Filter out inactive customers if specified
+    if not include_inactive:
+        # Get customers with invoices in the date range
+        active_customer_ids = Invoice.objects.filter(
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        ).values_list('customer_id', flat=True).distinct()
+        
+        customers = customers.filter(id__in=active_customer_ids)
+    
+    # Get invoices within date range
+    invoices = Invoice.objects.filter(
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    ).exclude(status='draft')
+    
+    # Create workbook and add a worksheet
+    workbook = xlwt.Workbook(encoding='utf-8')
+    worksheet = workbook.add_sheet('Customer Summary')
+    
+    # Define styles
+    header_style = xlwt.easyxf('font: bold on; align: wrap on, vert centre, horiz center')
+    amount_style = xlwt.easyxf('align: wrap on, vert centre, horiz right', num_format_str='#,##0.00')
+    
+    # Write header row
+    headers = [
+        'Customer', 'Phone', 'Customer Type', 'Total Orders', 
+        'Total Value (₹)', 'Pending Payment (₹)'
+    ]
+    
+    for col, header in enumerate(headers):
+        worksheet.write(0, col, header, header_style)
+        worksheet.col(col).width = 4000  # Set column width
+    
+    # Write data rows
+    row = 1
+    for customer in customers:
+        # Get customer's invoices in the date range
+        customer_invoices = invoices.filter(customer=customer)
+        
+        # Calculate metrics
+        total_orders = customer_invoices.count()
+        total_value = customer_invoices.aggregate(total=Sum('total'))['total'] or 0
+        
+        # Calculate pending payments - FIX: Include all invoices with amount_paid < total
+        pending_payment = 0
+        for invoice in customer_invoices:
+            if invoice.total > invoice.amount_paid:
+                pending_payment += (invoice.total - invoice.amount_paid)
+        
+        # Only include customers with orders in the period
+        if total_orders > 0 or include_inactive:
+            worksheet.write(row, 0, customer.name)
+            worksheet.write(row, 1, customer.phone)
+            worksheet.write(row, 2, dict(Customer.CUSTOMER_TYPE_CHOICES).get(customer.customer_type, 'Unknown'))
+            worksheet.write(row, 3, total_orders)
+            worksheet.write(row, 4, float(total_value), amount_style)
+            worksheet.write(row, 5, float(pending_payment), amount_style)
+            row += 1
+    
+    # Calculate totals for the footer row
+    total_orders_sum = 0
+    total_value_sum = 0
+    total_pending_sum = 0
+    
+    for customer in customers:
+        customer_invoices = invoices.filter(customer=customer)
+        if customer_invoices.count() > 0 or include_inactive:
+            total_orders_sum += customer_invoices.count()
+            total_value_sum += customer_invoices.aggregate(total=Sum('total'))['total'] or 0
+            
+            # Calculate pending payments
+            pending = 0
+            for invoice in customer_invoices:
+                if invoice.total > invoice.amount_paid:
+                    pending += (invoice.total - invoice.amount_paid)
+            total_pending_sum += pending
+    
+    # Write totals row
+    worksheet.write(row, 0, 'Total', header_style)
+    worksheet.write(row, 1, '', header_style)
+    worksheet.write(row, 2, '', header_style)
+    worksheet.write(row, 3, total_orders_sum)
+    worksheet.write(row, 4, float(total_value_sum), amount_style)
+    worksheet.write(row, 5, float(total_pending_sum), amount_style)
+    
+    # Create HTTP response with Excel file
+    response = HttpResponse(content_type='application/ms-excel')
+    current_date = timezone.now().strftime('%Y-%m-%d')
+    response['Content-Disposition'] = f'attachment; filename="Customer_Summary_{current_date}.xls"'
+    workbook.save(response)
+    
+    return response

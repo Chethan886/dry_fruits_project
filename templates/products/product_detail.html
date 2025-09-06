@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">{{ product.name }}</h1>
+        <div>
+            {% if user.is_admin %}
+            <a href="{% url 'quality_create' product.id %}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-plus me-2"></i> Add Quality Variant
+            </a>
+            <a href="{% url 'product_update' product.id %}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-edit me-2"></i> Edit Product
+            </a>
+            <a href="{% url 'product_delete' product.id %}" class="btn btn-outline-danger">
+                <i class="fas fa-trash me-2"></i> Delete Product
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Product Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3" style="height: 250px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa; border-radius: 8px;">
+                        {% if product.image_url %}
+                            <img src="{{ product.image_url }}" alt="{{ product.name }}" style="max-height: 100%; max-width: 100%; object-fit: contain;">
+                        {% else %}
+                            <i class="fas fa-box fa-4x text-primary"></i>
+                        {% endif %}
+                    </div>
+                    
+                    {% if product.description %}
+                    <div class="mb-3">
+                        <p class="mb-1"><strong>Description:</strong></p>
+                        <p class="mb-0">{{ product.description }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div>
+                        <p class="mb-1"><strong>Available Qualities:</strong></p>
+                        {% for quality in qualities %}
+                        <span class="badge bg-info me-1">{{ quality.get_quality_display }}</span>
+                        {% empty %}
+                        <p class="text-muted mb-0">No quality variants available</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-footer bg-white">
+                    <small class="text-muted">Added on: {{ product.created_at|date:"F d, Y" }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Quality Variants & Pricing</h5>
+                </div>
+                <div class="card-body">
+                    {% if qualities %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Quality</th>
+                                    <th>Retail Price</th>
+                                    <th>Wholesale Price</th>
+                                    <th>Broker Price</th>
+                                    <th>Stock</th>
+                                    {% if user.is_admin %}
+                                    <th>Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quality in qualities %}
+                                <tr>
+                                    <td>{{ quality.get_quality_display }}</td>
+                                    <td>₹{{ quality.retail_price }}</td>
+                                    <td>₹{{ quality.wholesale_price }}</td>
+                                    <td>₹{{ quality.broker_price }}</td>
+                                    <td>{{ quality.stock_quantity }} kg</td>
+                                    {% if user.is_admin %}
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'quality_update' quality.id %}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'quality_delete' quality.id %}" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No quality variants available for this product</p>
+                        {% if user.is_admin %}
+                        <div class="mt-3">
+                            <a href="{% url 'quality_create' product.id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus me-2"></i> Add Quality Variant
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Products
+        </a>
+    </div>
+</div>
+{% endblock %}

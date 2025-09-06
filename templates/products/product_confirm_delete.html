@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Product - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Delete Product</h1>
+        <a href="{% url 'product_detail' product.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Product
+        </a>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="alert alert-danger">
+                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i> Warning!</h4>
+                <p>Are you sure you want to delete the product <strong>{{ product.name }}</strong>?</p>
+                <p class="mb-0">This action cannot be undone. All quality variants and pricing information for this product will be permanently deleted.</p>
+            </div>
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-flex justify-content-end">
+                    <a href="{% url 'product_detail' product.id %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-times me-2"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i> Delete Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+
+{% block title %}Product Sales Report - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Product-wise Sales</h1>
+        <div>
+            <a href="{% url 'report_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Reports
+            </a>
+        </div>
+    </div>
+    
+    <!-- Filter Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-filter me-2"></i> Filter Options
+            </h5>
+            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true" aria-controls="filterCollapse">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <div class="card-body">
+                <form method="post" id="filterForm" class="row g-3">
+                    {% csrf_token %}
+                    
+                    <!-- Date Range -->
+                    <div class="col-md-3">
+                        <label for="{{ form.date_from.id_for_label }}" class="form-label">From Date</label>
+                        {{ form.date_from }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ form.date_to.id_for_label }}" class="form-label">To Date</label>
+                        {{ form.date_to }}
+                    </div>
+                    
+                    <!-- Quick Date Presets -->
+                    <div class="col-md-3">
+                        <label class="form-label">Quick Date Range</label>
+                        <select class="form-select" id="datePreset">
+                            <option value="">Custom Range</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="this_week">This Week</option>
+                            <option value="last_week">Last Week</option>
+                            <option value="this_month">This Month</option>
+                            <option value="last_month">Last Month</option>
+                            <option value="last_30">Last 30 Days</option>
+                            <option value="last_90">Last 90 Days</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Sort Options -->
+                    <div class="col-md-3">
+                        <label for="{{ form.sort_by.id_for_label }}" class="form-label">Sort By</label>
+                        {{ form.sort_by }}
+                    </div>
+                    
+                    <!-- Product Search -->
+                    <div class="col-md-4">
+                        <label for="productSearch" class="form-label">Product Search</label>
+                        <input type="text" class="form-control" id="productSearch" name="product_search" placeholder="Search by product name" value="{{ product_search }}">
+                    </div>
+                    
+                    <!-- Variant Filter -->
+                    <div class="col-md-4">
+                        <label for="variantFilter" class="form-label">Variant</label>
+                        <select class="form-select" id="variantFilter" name="variant_filter">
+                            <option value="">All Variants</option>
+                            {% for variant in all_variants %}
+                                <option value="{{ variant }}" {% if variant_filter == variant %}selected{% endif %}>{{ variant|default:"Standard" }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Min/Max Quantity -->
+                    <div class="col-md-4">
+                        <label for="minQuantity" class="form-label">Min Quantity (kg)</label>
+                        <input type="number" class="form-control" id="minQuantity" name="min_quantity" placeholder="Minimum quantity" value="{{ min_quantity }}" min="0" step="0.01">
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="col-12 d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-secondary" id="resetFilters">
+                            <i class="fas fa-undo me-2"></i> Reset Filters
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter me-2"></i> Apply Filters
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Quantity Sold</h6>
+                            <h3 class="mb-0">{{ total_quantity|floatformat:2 }} kg</h3>
+                        </div>
+                        <div class="bg-light-subtle p-3 rounded">
+                            <i class="fas fa-weight fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Revenue</h6>
+                            <h3 class="mb-0">₹{{ total_revenue|floatformat:2 }}</h3>
+                        </div>
+                        <div class="bg-light-subtle p-3 rounded">
+                            <i class="fas fa-rupee-sign fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Date Range</h6>
+                            <h5 class="mb-0">{{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</h5>
+                        </div>
+                        <div class="bg-light-subtle p-3 rounded">
+                            <i class="fas fa-calendar-alt fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Top 5 Best-Selling Products by Revenue</h5>
+                </div>
+                <div class="card-body">
+                    <div id="topProductsChart" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Product Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div id="productDistributionChart" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Table -->
+    <div class="card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Product Sales Data</h5>
+            <button class="btn btn-sm btn-outline-success" onclick="exportToExcel()">
+                <i class="fas fa-download me-2"></i> Export to Excel
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="productTable">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Variant</th>
+                            <th class="text-end">Qty Sold (Kg)</th>
+                            <th class="text-end">Revenue (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in table_data %}
+                        <tr>
+                            <td>{{ item.product }}</td>
+                            <td>{{ item.variant|default:"Standard" }}</td>
+                            <td class="text-end">{{ item.quantity_sold|floatformat:2 }}</td>
+                            <td class="text-end">{{ item.revenue|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No data available for the selected period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-dark fw-bold">
+                            <td colspan="2">Total</td>
+                            <td class="text-end">{{ total_quantity|floatformat:2 }}</td>
+                            <td class="text-end">{{ total_revenue|floatformat:2 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    // Parse chart data from Django
+    const chartData = JSON.parse('{{ chart_data|safe }}');
+    
+    // Top Products Bar Chart
+    const topProductsOptions = {
+        series: [{
+            name: 'Revenue',
+            data: chartData.map(item => item.value)
+        }],
+        chart: {
+            type: 'bar',
+            height: 300,
+            toolbar: {
+                show: false
+            }
+        },
+        plotOptions: {
+            bar: {
+                borderRadius: 4,
+                horizontal: false,
+                columnWidth: '55%',
+                distributed: true
+            }
+        },
+        dataLabels: {
+            enabled: false
+        },
+        colors: ['#33b2df', '#546E7A', '#d4526e', '#13d8aa', '#A5978B'],
+        xaxis: {
+            categories: chartData.map(item => item.name),
+            labels: {
+                style: {
+                    fontSize: '12px'
+                }
+            }
+        },
+        yaxis: {
+            title: {
+                text: 'Revenue (₹)'
+            },
+            labels: {
+                formatter: function(val) {
+                    return '₹' + val.toLocaleString();
+                }
+            }
+        },
+        tooltip: {
+            y: {
+                formatter: function(val) {
+                    return '₹' + val.toLocaleString();
+                }
+            }
+        },
+        legend: {
+            show: false
+        }
+    };
+    
+    const topProductsChart = new ApexCharts(document.querySelector("#topProductsChart"), topProductsOptions);
+    topProductsChart.render();
+    
+    // Product Distribution Pie Chart
+    const distributionData = chartData.map(item => item.value);
+    const distributionLabels = chartData.map(item => item.name);
+    
+    const productDistributionOptions = {
+        series: distributionData,
+        chart: {
+            type: 'donut',
+            height: 300
+        },
+        labels: distributionLabels,
+        responsive: [{
+            breakpoint: 480,
+            options: {
+                chart: {
+                    width: 200
+                },
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }],
+        tooltip: {
+            y: {
+                formatter: function(val) {
+                    return '₹' + val.toLocaleString();
+                }
+            }
+        }
+    };
+    
+    const productDistributionChart = new ApexCharts(document.querySelector("#productDistributionChart"), productDistributionOptions);
+    productDistributionChart.render();
+    
+    // Date preset handling
+    document.getElementById('datePreset').addEventListener('change', function() {
+        const preset = this.value;
+        if (!preset) return;
+        
+        const today = new Date();
+        let startDate = new Date();
+        let endDate = new Date();
+        
+        switch(preset) {
+            case 'today':
+                // Start and end are already today
+                break;
+            case 'yesterday':
+                startDate.setDate(today.getDate() - 1);
+                endDate.setDate(today.getDate() - 1);
+                break;
+            case 'this_week':
+                startDate.setDate(today.getDate() - today.getDay()); // Sunday as first day
+                break;
+            case 'last_week':
+                startDate.setDate(today.getDate() - today.getDay() - 7);
+                endDate.setDate(today.getDate() - today.getDay() - 1);
+                break;
+            case 'this_month':
+                startDate.setDate(1);
+                break;
+            case 'last_month':
+                startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                break;
+            case 'last_30':
+                startDate.setDate(today.getDate() - 30);
+                break;
+            case 'last_90':
+                startDate.setDate(today.getDate() - 90);
+                break;
+        }
+        
+        // Format dates for input fields (YYYY-MM-DD)
+        document.getElementById('{{ form.date_from.id_for_label }}').value = formatDate(startDate);
+        document.getElementById('{{ form.date_to.id_for_label }}').value = formatDate(endDate);
+    });
+    
+    // Helper function to format date as YYYY-MM-DD
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
+    // Reset filters
+    document.getElementById('resetFilters').addEventListener('click', function() {
+        const form = document.getElementById('filterForm');
+        
+        // Reset date fields to default (last 30 days)
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        document.getElementById('{{ form.date_from.id_for_label }}').value = formatDate(thirtyDaysAgo);
+        document.getElementById('{{ form.date_to.id_for_label }}').value = formatDate(today);
+        
+        // Reset other fields
+        document.getElementById('datePreset').value = '';
+        document.getElementById('{{ form.sort_by.id_for_label }}').value = 'quantity';
+        document.getElementById('productSearch').value = '';
+        document.getElementById('variantFilter').value = '';
+        document.getElementById('minQuantity').value = '';
+        
+        // Submit the form
+        form.submit();
+    });
+    
+    // Export to Excel function
+    function exportToExcel() {
+        // Create a form dynamically
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = window.location.href;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+        
+        // Add export parameter
+        const exportInput = document.createElement('input');
+        exportInput.type = 'hidden';
+        exportInput.name = 'export';
+        exportInput.value = 'true';
+        form.appendChild(exportInput);
+        
+        // Copy all filter values from the main form
+        const filterForm = document.getElementById('filterForm');
+        const formData = new FormData(filterForm);
+        
+        for (const [name, value] of formData.entries()) {
+            if (name !== 'csrfmiddlewaretoken') {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            }
+        }
+        
+        // Append to body, submit, and remove
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block title %}Shopping Cart - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Shopping Cart</h1>
+        <div>
+            <a href="{% url 'product_selection' %}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-plus me-2"></i> Add More Products
+            </a>
+            {% if cart %}
+            <a href="{% url 'checkout' %}" class="btn btn-primary">
+                <i class="fas fa-shopping-cart me-2"></i> Proceed to Checkout
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if cart %}
+        <div class="card mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;"></th>
+                                <th>Product</th>
+                                <th>Quality</th>
+                                <th class="text-center">Quantity (kg)</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart %}
+                                <tr>
+                                    <td>
+                                        <div class="cart-item-image" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa; border-radius: 4px;">
+                                            {% if item.product.image_url %}
+                                                <img src="{{ item.product.image_url }}" alt="{{ item.product.name }}" style="max-height: 100%; max-width: 100%; object-fit: contain;">
+                                            {% else %}
+                                                <i class="fas fa-box fa-2x text-muted"></i>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>{{ item.product_name }}</td>
+                                    <td>
+                                        <!-- Fixed quality dropdown to use correct relationship name 'qualities' -->
+                                        <select class="form-select form-select-sm quality-select" data-index="{{ forloop.counter0 }}" data-product-id="{{ item.product.id }}">
+                                            <script>
+                                                console.log("[v0] Cart item {{ forloop.counter0 }}:", {
+                                                    product_name: "{{ item.product_name }}",
+                                                    product_id: "{{ item.product.id }}",
+                                                    current_quality_id: "{{ item.quality_id }}",
+                                                    current_quality: "{{ item.quality.quality }}",
+                                                    available_qualities: [
+                                                        {% for quality in item.product.qualities.all %}
+                                                        {
+                                                            id: "{{ quality.id }}",
+                                                            quality: "{{ quality.quality }}",
+                                                            display: "{{ quality.get_quality_display }}",
+                                                            price: "{{ quality.retail_price }}"
+                                                        }{% if not forloop.last %},{% endif %}
+                                                        {% endfor %}
+                                                    ]
+                                                });
+                                            </script>
+                                            {% for quality in item.product.qualities.all %}
+                                                <option value="{{ quality.id }}" data-price="{{ quality.retail_price }}" 
+                                                        {% if quality.id == item.quality_id %}selected{% endif %}>
+                                                    {{ quality.get_quality_display }} - ₹{{ quality.retail_price }}/kg
+                                                </option>
+                                            {% empty %}
+                                                <option value="">No qualities available</option>
+                                                <script>
+                                                    console.log("[v0] No qualities found for product {{ item.product.id }}");
+                                                    console.log("[v0] Product object:", {{ item.product|safe }});
+                                                </script>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="text-center">
+                                        <!-- Added increment/decrement buttons with improved styling -->
+                                        <div class="input-group input-group-sm" style="max-width: 150px; margin: 0 auto;">
+                                            <button class="btn btn-outline-secondary quantity-btn-minus" type="button" data-index="{{ forloop.counter0 }}">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <input type="number" class="form-control quantity-input text-center" value="{{ item.quantity }}" min="0.001" step="0.001" data-index="{{ forloop.counter0 }}" data-price="{{ item.price }}">
+                                            <button class="btn btn-outline-secondary quantity-btn-plus" type="button" data-index="{{ forloop.counter0 }}">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <span class="input-group-text">kg</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end unit-price-cell" data-index="{{ forloop.counter0 }}">₹{{ item.price|floatformat:2 }}/kg</td>
+                                    <td class="text-end subtotal-cell" data-index="{{ forloop.counter0 }}">₹{{ item.subtotal|floatformat:2 }}</td>
+                                    <td class="text-center">
+                                        <!-- Removed refresh button, kept only delete button -->
+                                        <button class="btn btn-sm btn-outline-danger remove-item-btn" data-index="{{ forloop.counter0 }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="5" class="text-end fw-bold">Total:</td>
+                                <td class="text-end fw-bold" id="cartTotal">₹{{ subtotal|floatformat:2 }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'product_selection' %}?clear_cart=true" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to clear your cart?');">
+                <i class="fas fa-trash me-2"></i> Clear Cart
+            </a>
+            <a href="{% url 'checkout' %}" class="btn btn-primary">
+                <i class="fas fa-shopping-cart me-2"></i> Proceed to Checkout
+            </a>
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-shopping-cart fa-4x text-muted mb-3"></i>
+                <h4>Your cart is empty</h4>
+                <p class="text-muted">Add products to your cart to create a bill.</p>
+                <a href="{% url 'product_selection' %}" class="btn btn-primary mt-3">
+                    <i class="fas fa-plus me-2"></i> Browse Products
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('.quantity-btn-plus').click(function() {
+            const index = $(this).data('index');
+            const quantityInput = $(`.quantity-input[data-index="${index}"]`);
+            let currentValue = parseFloat(quantityInput.val()) || 0;
+            quantityInput.val(currentValue + 1).trigger('input');
+        });
+        
+        $('.quantity-btn-minus').click(function() {
+            const index = $(this).data('index');
+            const quantityInput = $(`.quantity-input[data-index="${index}"]`);
+            let currentValue = parseFloat(quantityInput.val()) || 0;
+            if (currentValue > 0.001) {
+                quantityInput.val(Math.max(0.001, currentValue - 1)).trigger('input');
+            }
+        });
+        
+        $('.quantity-input').on('input', function() {
+            const index = $(this).data('index');
+            const quantity = parseFloat($(this).val());
+            const price = parseFloat($(this).data('price'));
+            
+            if (!isNaN(quantity) && quantity > 0 && !isNaN(price)) {
+                // Calculate new subtotal
+                const subtotal = quantity * price;
+                $(`.subtotal-cell[data-index="${index}"]`).text('₹' + subtotal.toFixed(2));
+                
+                // Update cart total
+                updateCartTotal();
+                
+                // Send AJAX request to update cart
+                $.ajax({
+                    url: '{% url "update_cart" %}',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        index: index,
+                        quantity: quantity,
+                        unit: 'kg'
+                    }),
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        // Update subtotal with server response
+                        $(`.subtotal-cell[data-index="${index}"]`).text('₹' + response.subtotal.toFixed(2));
+                        updateCartTotal();
+                    },
+                    error: function(xhr) {
+                        console.error('Error updating cart:', xhr.responseJSON);
+                    }
+                });
+            }
+        });
+        
+        function updateCartTotal() {
+            let total = 0;
+            $('.subtotal-cell').each(function() {
+                const subtotalText = $(this).text().replace('₹', '');
+                const subtotal = parseFloat(subtotalText);
+                if (!isNaN(subtotal)) {
+                    total += subtotal;
+                }
+            });
+            $('#cartTotal').text('₹' + total.toFixed(2));
+        }
+        
+        // Remove item from cart
+        $('.remove-item-btn').click(function() {
+            if (!confirm('Are you sure you want to remove this item from your cart?')) {
+                return;
+            }
+            
+            const index = $(this).data('index');
+            
+            // Send AJAX request to remove from cart
+            $.ajax({
+                url: '{% url "remove_from_cart" %}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    index: index
+                }),
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Reload page
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert('Error removing item: ' + xhr.responseJSON.message);
+                }
+            });
+        });
+        
+        // Update cart quality
+        $('.quality-select').change(function() {
+            console.log("[v0] Quality dropdown changed");
+            const index = $(this).data('index');
+            const selectedOption = $(this).find(':selected');
+            const newPrice = parseFloat(selectedOption.data('price'));
+            const qualityId = selectedOption.val();
+            const quantityInput = $(`.quantity-input[data-index="${index}"]`);
+            const quantity = parseFloat(quantityInput.val());
+            
+            console.log("[v0] Quality change data:", {
+                index: index,
+                qualityId: qualityId,
+                newPrice: newPrice,
+                quantity: quantity
+            });
+            
+            // Update price display and data attribute
+            quantityInput.data('price', newPrice);
+            $(this).closest('tr').find('td.unit-price-cell').text('₹' + newPrice.toFixed(2) + '/kg');
+            
+            // Recalculate subtotal
+            const subtotal = quantity * newPrice;
+            $(`.subtotal-cell[data-index="${index}"]`).text('₹' + subtotal.toFixed(2));
+            updateCartTotal();
+            
+            // Send AJAX request to update cart quality
+            $.ajax({
+                url: '{% url "update_cart_quality" %}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    index: index,
+                    quality_id: qualityId,
+                    quantity: quantity
+                }),
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    console.log("[v0] Quality update success:", response);
+                    // Update with server response
+                    $(`.subtotal-cell[data-index="${index}"]`).text('₹' + response.subtotal.toFixed(2));
+                    quantityInput.data('price', response.price);
+                    updateCartTotal();
+                },
+                error: function(xhr) {
+                    console.error('[v0] Error updating cart quality:', xhr.responseJSON);
+                    // Revert selection on error
+                    location.reload();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

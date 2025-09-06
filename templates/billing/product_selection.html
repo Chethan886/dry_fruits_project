@@ -1,0 +1,1033 @@
+{% extends 'base.html' %}
+
+{% block title %}Select Products - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Create Bill - Select Products</h1>
+        <div>
+            <!-- Added voice button for automatic product addition -->
+            <button class="btn btn-info me-2" id="voiceBtn">
+                <i class="fas fa-microphone me-2"></i> Add by Voice (Continuous)
+            </button>
+            <a href="{% url 'view_cart' %}" class="btn btn-primary position-relative">
+                <i class="fas fa-shopping-cart me-2"></i> View Cart
+                {% if cart_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {{ cart_count }}
+                </span>
+                {% endif %}
+            </a>
+        </div>
+    </div>
+    
+    <!-- Added voice status display -->
+    <div id="voiceStatus" class="alert alert-info" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-microphone-alt me-2"></i>
+                <span id="voiceStatusText">Ready to listen...</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="stopVoiceBtn" style="display: none;">
+                <i class="fas fa-stop me-1"></i> Stop
+            </button>
+        </div>
+        <div id="voiceTranscript" class="mt-2" style="display: none;">
+            <small class="text-muted">Last heard: </small>
+            <span id="transcriptText"></span>
+        </div>
+    </div>
+    
+    <!-- Added live search functionality -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search products by name..." value="{{ query }}">
+                </div>
+                <div class="col-md-4">
+                    <select id="qualityFilter" class="form-select">
+                        <option value="">All Quality Types</option>
+                        <option value="premium" {% if quality_filter == 'premium' %}selected{% endif %}>Premium</option>
+                        <option value="standard" {% if quality_filter == 'standard' %}selected{% endif %}>Standard</option>
+                        <option value="economy" {% if quality_filter == 'economy' %}selected{% endif %}>Economy</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Converted to table format with sortable columns -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 80px;">Image</th>
+                            <th class="sortable" data-sort="name">
+                                Product Name <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <!-- Removed Category column to save space -->
+                            <th>Quality & Price</th>
+                            <th class="sortable" data-sort="stock" style="width: 120px;">
+                                Stock <i class="fas fa-sort ms-1"></i>
+                            </th>
+                            <th style="width: 180px;">Quantity (kg)</th>
+                            <th style="width: 100px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        {% for product in products %}
+                            <tr class="product-row" data-name="{{ product.name|lower }}" data-category="{{ product.category|lower }}">
+                                <td>
+                                    <div class="product-image-container" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa; border-radius: 4px;">
+                                        {% if product.image_url %}
+                                            <img src="{{ product.image_url }}" class="product-image" alt="{{ product.name }}" style="max-height: 50px; max-width: 50px; object-fit: contain;">
+                                        {% else %}
+                                            <i class="fas fa-box fa-lg text-muted"></i>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="fw-medium">{{ product.name }}</td>
+                                <!-- Removed category column -->
+                                <td>
+                                    {% if product.qualities.exists %}
+                                        <select class="form-select form-select-sm quality-select" data-product-id="{{ product.id }}">
+                                            {% for quality in product.qualities.all %}
+                                                <option value="{{ quality.id }}" data-price="{{ quality.retail_price }}" data-stock="{{ quality.stock_quantity }}">
+                                                    {{ quality.get_quality_display }} - ₹{{ quality.retail_price }}/kg
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    {% else %}
+                                        <span class="text-muted">No variants</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if product.qualities.exists %}
+                                        {% with first_quality=product.qualities.first %}
+                                            <span class="stock-display {% if first_quality.stock_quantity < 50 %}text-danger fw-bold{% endif %}" data-product-id="{{ product.id }}">
+                                                {{ first_quality.stock_quantity }} kg
+                                            </span>
+                                        {% endwith %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if product.qualities.exists %}
+                                        <!-- Added increment/decrement buttons with custom styling -->
+                                        <div class="input-group input-group-sm">
+                                            <button class="btn btn-outline-secondary quantity-btn-minus" type="button" data-product-id="{{ product.id }}">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <input type="number" class="form-control quantity-input text-center" value="1" min="0.001" step="0.001" data-product-id="{{ product.id }}">
+                                            <button class="btn btn-outline-secondary quantity-btn-plus" type="button" data-product-id="{{ product.id }}">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <input type="number" class="form-control form-control-sm" disabled>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if product.qualities.exists %}
+                                        <button class="btn btn-primary btn-sm add-to-cart-btn" data-product-id="{{ product.id }}">
+                                            <i class="fas fa-cart-plus"></i>
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled>
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <!-- Updated colspan from 7 to 6 after removing category column -->
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="fas fa-info-circle me-2"></i> No products found.
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        let searchTimeout;
+        
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let recognition = null;
+        let isListening = false;
+        let silenceTimer = null;
+        let lastProcessedText = '';
+        
+        // Check for speech recognition support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const isWebSpeechSupported = !!SpeechRecognition;
+        const isMediaRecorderSupported = navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder;
+        
+        if (!isWebSpeechSupported && !isMediaRecorderSupported) {
+            $('#voiceBtn').prop('disabled', true).html('<i class="fas fa-microphone-slash me-2"></i> Not Supported');
+        }
+        
+        $('#voiceBtn').click(function() {
+            if (!isListening) {
+                startContinuousListening();
+            } else {
+                stopContinuousListening();
+            }
+        });
+        
+        $('#stopVoiceBtn').click(function() {
+            stopContinuousListening();
+        });
+        
+        function startContinuousListening() {
+            console.log('[v0] Starting continuous voice recognition...');
+            
+            if (isWebSpeechSupported) {
+                startWebSpeechRecognition();
+            } else if (isMediaRecorderSupported) {
+                // Fallback to Whisper-only mode
+                startWhisperRecording();
+            } else {
+                alert('Voice recognition is not supported in your browser.');
+                return;
+            }
+            
+            isListening = true;
+            
+            // Update UI for continuous mode
+            $('#voiceStatus').show();
+            $('#voiceStatusText').text('🎤 Listening continuously... Say: "add 2 kg almonds" or "get some cashews"');
+            $('#stopVoiceBtn').show();
+            $('#voiceBtn').prop('disabled', false).html('<i class="fas fa-stop me-2 text-danger"></i> Stop Listening');
+        }
+        
+        function startWebSpeechRecognition() {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true; // Keep listening
+            recognition.interimResults = true; // Get partial results
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = function() {
+                console.log('[v0] Web Speech Recognition started');
+                $('#voiceStatusText').text('🎤 Listening... Speak naturally: "add 3 kg almonds and cashews"');
+            };
+            
+            recognition.onresult = function(event) {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                // Show interim results
+                if (interimTranscript) {
+                    $('#transcriptText').text(interimTranscript);
+                    $('#voiceTranscript').show();
+                }
+                
+                // Process final results immediately
+                if (finalTranscript.trim() && finalTranscript.trim() !== lastProcessedText) {
+                    console.log('[v0] Final transcript:', finalTranscript);
+                    lastProcessedText = finalTranscript.trim();
+                    
+                    $('#transcriptText').text(finalTranscript);
+                    $('#voiceTranscript').show();
+                    
+                    // Process the command immediately
+                    processVoiceCommand(finalTranscript.toLowerCase());
+                    
+                    // Clear transcript after processing
+                    setTimeout(() => {
+                        $('#voiceTranscript').hide();
+                    }, 3000);
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('[v0] Speech recognition error:', event.error);
+                if (event.error === 'no-speech') {
+                    // Restart recognition after no speech
+                    setTimeout(() => {
+                        if (isListening) {
+                            recognition.start();
+                        }
+                    }, 1000);
+                } else {
+                    $('#voiceStatusText').text('Recognition error: ' + event.error);
+                }
+            };
+            
+            recognition.onend = function() {
+                console.log('[v0] Speech recognition ended');
+                // Restart recognition if still listening
+                if (isListening) {
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.log('[v0] Recognition restart failed:', e);
+                        }
+                    }, 100);
+                }
+            };
+            
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('[v0] Failed to start recognition:', e);
+                // Fallback to Whisper
+                startWhisperRecording();
+            }
+        }
+        
+        function stopContinuousListening() {
+            console.log('[v0] Stopping continuous listening...');
+            
+            isListening = false;
+            
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
+            }
+            
+            if (mediaRecorder && isRecording) {
+                stopWhisperRecording();
+            }
+            
+            resetVoiceUI();
+        }
+        
+        async function startWhisperRecording() {
+            try {
+                console.log('[v0] Starting Whisper recording...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                // Reset audio chunks
+                audioChunks = [];
+                
+                // Create MediaRecorder with optimal settings for Whisper
+                const options = {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 16000
+                };
+                
+                // Fallback mime types if webm is not supported
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        options.mimeType = 'audio/mp4';
+                    } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+                        options.mimeType = 'audio/wav';
+                    } else {
+                        delete options.mimeType;
+                    }
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = function() {
+                    console.log('[v0] Recording stopped, processing audio...');
+                    processAudioWithWhisper();
+                    
+                    // Stop all tracks to release microphone
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.onerror = function(event) {
+                    console.error('[v0] MediaRecorder error:', event.error);
+                    $('#voiceStatusText').text('Recording error: ' + event.error);
+                    stopContinuousListening();
+                };
+                
+                // Start recording
+                mediaRecorder.start(1000); // Collect data every second
+                isRecording = true;
+                
+                console.log('[v0] Recording started successfully');
+                
+            } catch (error) {
+                console.error('[v0] Error starting recording:', error);
+                alert('Could not access microphone. Please check permissions and try again.');
+                stopContinuousListening();
+            }
+        }
+        
+        function stopWhisperRecording() {
+            console.log('[v0] Stopping recording...');
+            
+            if (mediaRecorder && isRecording) {
+                isRecording = false;
+                mediaRecorder.stop();
+            }
+        }
+        
+        function resetVoiceUI() {
+            $('#voiceStatus').hide();
+            $('#voiceTranscript').hide();
+            $('#stopVoiceBtn').hide();
+            $('#voiceBtn').prop('disabled', false).html('<i class="fas fa-microphone me-2"></i> Add by Voice (Continuous)');
+            isRecording = false;
+            lastProcessedText = '';
+        }
+        
+        async function processAudioWithWhisper() {
+            try {
+                console.log('[v0] Processing', audioChunks.length, 'audio chunks');
+                
+                if (audioChunks.length === 0) {
+                    $('#voiceStatusText').text('No audio recorded. Please try again.');
+                    setTimeout(resetVoiceUI, 2000);
+                    return;
+                }
+                
+                // Create audio blob
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                console.log('[v0] Audio blob size:', audioBlob.size, 'bytes');
+                
+                if (audioBlob.size < 1000) { // Less than 1KB probably means no audio
+                    $('#voiceStatusText').text('Audio too short. Please speak longer and try again.');
+                    setTimeout(resetVoiceUI, 2000);
+                    return;
+                }
+                
+                // Create FormData for upload
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                
+                // Send to Whisper backend
+                const response = await fetch('{% url "whisper_transcribe" %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                });
+                
+                const result = await response.json();
+                console.log('[v0] Whisper response:', result);
+                
+                if (result.success && result.transcript) {
+                    const transcript = result.transcript.trim();
+                    console.log('[v0] Whisper transcript:', transcript);
+                    
+                    // Show transcript
+                    $('#transcriptText').text(transcript);
+                    $('#voiceTranscript').show();
+                    
+                    // Process the command
+                    processVoiceCommand(transcript.toLowerCase());
+                    
+                } else {
+                    const errorMsg = result.error || 'Failed to transcribe audio';
+                    console.error('[v0] Whisper error:', errorMsg);
+                    $('#voiceStatusText').text('Transcription failed: ' + errorMsg);
+                }
+                
+            } catch (error) {
+                console.error('[v0] Error processing audio:', error);
+                $('#voiceStatusText').text('Error processing audio: ' + error.message);
+            }
+            
+            // Reset UI after 3 seconds
+            setTimeout(() => {
+                if (!isRecording) {
+                    resetVoiceUI();
+                }
+            }, 3000);
+        }
+        
+        function processVoiceCommand(command) {
+            console.log('[v0] Processing voice command:', command);
+            
+            // Clean up the command more carefully
+            command = command.replace(/[,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+            
+            // Skip very short commands or common filler words
+            if (command.length < 3 || /^(um|uh|er|ah|the|and|or)$/i.test(command)) {
+                return;
+            }
+            
+            // Split command into individual product phrases with their quantities
+            const productPhrases = parseQuantityProductPairs(command);
+            
+            console.log('[v0] Extracted quantity-product pairs:', productPhrases);
+            
+            let addedProducts = [];
+            let notFoundProducts = [];
+            
+            // Process each product phrase with its specific quantity
+            productPhrases.forEach(pair => {
+                const result = findBestProductMatch(pair.product);
+                console.log('[v0] Match result for "' + pair.product + '" with quantity ' + pair.quantity + ':', result);
+                if (result) {
+                    addProductToCartViaVoice(result.productId, result.qualityId, pair.quantity);
+                    addedProducts.push(`${pair.quantity} kg ${result.productName} (${result.quality})`);
+                } else {
+                    notFoundProducts.push(`${pair.quantity} kg ${pair.product}`);
+                }
+            });
+            
+            let feedbackMessage = '';
+            if (addedProducts.length > 0) {
+                feedbackMessage += `✅ Added: ${addedProducts.join(', ')}`;
+                
+                // Show success feedback briefly
+                $('#voiceStatusText').text(feedbackMessage);
+                setTimeout(() => {
+                    if (isListening) {
+                        $('#voiceStatusText').text('🎤 Listening... Continue speaking or say "stop listening"');
+                    }
+                }, 2000);
+            } else if (notFoundProducts.length > 0) {
+                feedbackMessage = `❌ Could not find: ${notFoundProducts.join(', ')}. Try speaking more clearly.`;
+                $('#voiceStatusText').text(feedbackMessage);
+                setTimeout(() => {
+                    if (isListening) {
+                        $('#voiceStatusText').text('🎤 Listening... Continue speaking');
+                    }
+                }, 2000);
+            }
+            
+            if (command.includes('stop listening') || command.includes('stop recording') || command.includes('that\'s all')) {
+                stopContinuousListening();
+            }
+        }
+        
+        function parseQuantityProductPairs(command) {
+            console.log('[v0] Parsing quantity-product pairs from:', command);
+
+            // Remove common command words
+            let cleanCommand = command
+                .replace(/\b(?:add|get|give|me|some|of|the|a|an|please|want|need)\b/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // Normalize spoken numbers and unit synonyms
+            cleanCommand = normalizeSpokenNumbersAndUnits(cleanCommand);
+
+            // Split by common separators but keep the parts
+            const segments = cleanCommand.split(/\s*(?:,|and|or|also)\s+/i);
+
+            const pairs = [];
+
+            segments.forEach(segment => {
+                segment = segment.trim();
+                if (segment.length < 2) return;
+
+                // Normalize each segment for safer matching
+                const seg = normalizeSpokenNumbersAndUnits(segment);
+
+                // Match number with optional unit (kg/g variants)
+                const quantityMatch = seg.match(/(\d+(?:\.\d+)?)\s*(kg|g)\b/i)
+                    || seg.match(/(\d+(?:\.\d+)?)/); // fallback: number without explicit unit
+
+                let quantity = null;
+                let unit = 'kg'; // default to kg
+
+                if (quantityMatch) {
+                    quantity = parseFloat(quantityMatch[1]);
+                    if (!isNaN(quantity)) {
+                        if (quantityMatch[2]) {
+                            const u = quantityMatch[2].toLowerCase();
+                            if (u === 'g') {
+                                // Convert grams to kg
+                                quantity = quantity / 1000;
+                            }
+                        }
+                    }
+                }
+
+                // Remove the matched quantity + unit text to isolate product name
+                let product = seg;
+                if (quantityMatch && quantityMatch[0]) {
+                    product = product.replace(quantityMatch[0], ' ');
+                }
+                product = product.replace(/\s+/g, ' ').trim();
+
+                // If no product text remains (e.g., "add 2 kg"), skip
+                if (!product) return;
+
+                // If quantity wasn't found or was invalid, default to 1 kg
+                if (quantity === null || isNaN(quantity) || quantity <= 0) {
+                    quantity = 1;
+                }
+
+                // Round to 3 decimals to align with input step
+                quantity = Math.round(quantity * 1000) / 1000;
+
+                pairs.push({
+                    quantity: quantity,
+                    product: product
+                });
+            });
+
+            // Fallback: if nothing parsed, assume entire command is product with quantity 1
+            return pairs.length > 0 ? pairs : [{ quantity: 1, product: cleanCommand }];
+        }
+
+        function normalizeSpokenNumbersAndUnits(text) {
+            let t = (text || '').toLowerCase();
+
+            // Normalize common filler/connectors around numbers
+            // Convert words to digits for 0-10 to help "one point five"
+            const numberMap = {
+                'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
+                'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+                'ten': '10'
+            };
+            t = t.replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten)\b/g, (m) => numberMap[m]);
+
+            // Handle fractional words when they appear without a leading number
+            // e.g., "half kg cashews" -> "0.5 kg cashews", "quarter kg" -> "0.25 kg"
+            t = t.replace(/\b(three\s+quarters|three\s+quarter|3\/4)\b/g, '0.75');
+            t = t.replace(/\b(quarter|1\/4)\b/g, '0.25');
+            t = t.replace(/\b(half|1\/2)\b/g, '0.5');
+
+            // Convert "X and a half" / "X and half" into decimals: "1 and a half" -> "1.5"
+            t = t.replace(/\b(\d+)\s+(?:and\s+)?(?:a\s+)?half\b/g, (_, num) => `${num}.5`);
+            // Convert "X and a quarter/three quarters"
+            t = t.replace(/\b(\d+)\s+(?:and\s+)?(?:a\s+)?quarter\b/g, (_, num) => `${num}.25`);
+            t = t.replace(/\b(\d+)\s+(?:and\s+)?(?:three\s+quarters|3\/4)\b/g, (_, num) => `${num}.75`);
+
+            // Normalize "point"/"dot" decimals: "1 point 5" -> "1.5"
+            t = t.replace(/\b(point|dot)\b/g, '.');
+            // Remove spaces around decimal points between digits
+            t = t.replace(/(\d)\s*\.\s*(\d)/g, '$1.$2');
+
+            // Normalize units variants
+            // We'll only detect them later but keep text clean
+            t = t
+                .replace(/\bkilos?\b/g, 'kg')
+                .replace(/\bkilograms?\b/g, 'kg')
+                .replace(/\bkilogrammes?\b/g, 'kg')
+                .replace(/\bkgs?\b/g, 'kg')
+                .replace(/\bgrammes?\b/g, 'g')
+                .replace(/\bgrams?\b/g, 'g')
+                .replace(/\bgm?s?\b/g, 'g'); // gm, gms -> g
+
+            // Optional safety: fix rare transcripts like "1 5 kg" to "1.5 kg"
+            // (only when two numbers separated by a single space and the second is a single digit)
+            t = t.replace(/\b(\d)\s([0-9])\s*(kg|g)\b/g, '$1.$2 $3');
+
+            return t.replace(/\s+/g, ' ').trim();
+        }
+
+        function findBestProductMatch(phrase) {
+            console.log('[v0] Finding match for phrase:', phrase);
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            // Extract quality from phrase if mentioned
+            let detectedQuality = 'standard'; // default quality
+            if (phrase.match(/\b(?:premium|high|best|top)\b/i)) {
+                detectedQuality = 'premium';
+            } else if (phrase.match(/\b(?:economy|cheap|basic|low)\b/i)) {
+                detectedQuality = 'economy';
+            }
+            
+            // Remove quality words from phrase for product matching
+            const cleanPhrase = phrase.replace(/\b(?:premium|standard|economy|high|best|cheap|basic|top|low)\b/gi, ' ')
+                .replace(/\s+/g, ' ').trim().toLowerCase();
+            
+            console.log('[v0] Clean phrase for matching:', cleanPhrase);
+            
+            $('.product-row').each(function() {
+                const rowProductName = $(this).data('name');
+                const qualitySelect = $(this).find('.quality-select');
+                
+                console.log('[v0] Comparing with product:', rowProductName);
+                
+                // Calculate similarity score using multiple methods
+                const exactMatch = cleanPhrase === rowProductName ? 1.0 : 0;
+                const includesMatch = rowProductName.includes(cleanPhrase) || cleanPhrase.includes(rowProductName) ? 0.9 : 0;
+                
+                // Enhanced fuzzy matching for speech recognition errors
+                const fuzzyScore = calculateAdvancedSimilarity(cleanPhrase, rowProductName);
+                
+                // Check for partial word matches (handles "lmonds" -> "almonds")
+                const partialScore = calculatePartialWordMatch(cleanPhrase, rowProductName);
+                
+                const finalScore = Math.max(exactMatch, includesMatch, fuzzyScore, partialScore);
+                
+                console.log('[v0] Scores for', rowProductName, ':', {
+                    exact: exactMatch,
+                    includes: includesMatch,
+                    fuzzy: fuzzyScore,
+                    partial: partialScore,
+                    final: finalScore
+                });
+                
+                if (finalScore > 0.3) { // Lower threshold for more flexibility
+                    // Find the best quality match
+                    let qualityId = null;
+                    let qualityName = 'standard';
+                    
+                    // First try to find the detected quality
+                    qualitySelect.find('option').each(function() {
+                        const optionText = $(this).text().toLowerCase();
+                        if (optionText.includes(detectedQuality)) {
+                            qualityId = $(this).val();
+                            qualityName = detectedQuality;
+                            return false; // break
+                        }
+                    });
+                    
+                    // If not found, use the first available quality (usually standard)
+                    if (!qualityId) {
+                        const firstOption = qualitySelect.find('option').first();
+                        qualityId = firstOption.val();
+                        qualityName = firstOption.text().split(' - ')[0].toLowerCase();
+                    }
+                    
+                    if (finalScore > bestScore && qualityId) {
+                        bestScore = finalScore;
+                        bestMatch = {
+                            productId: qualitySelect.data('product-id'),
+                            qualityId: qualityId,
+                            productName: $(this).find('td:nth-child(2)').text(),
+                            quality: qualityName,
+                            score: finalScore
+                        };
+                    }
+                }
+            });
+            
+            console.log('[v0] Best match found:', bestMatch);
+            return bestMatch;
+        }
+        
+        function calculatePartialWordMatch(phrase1, phrase2) {
+            // Handle cases where speech recognition drops first letters
+            const words1 = phrase1.split(/\s+/);
+            const words2 = phrase2.split(/\s+/);
+            
+            let totalScore = 0;
+            let matchCount = 0;
+            
+            words1.forEach(word1 => {
+                let bestWordScore = 0;
+                words2.forEach(word2 => {
+                    // Check if word1 is a suffix of word2 (handles "lmonds" -> "almonds")
+                    if (word2.endsWith(word1) && word1.length >= 3) {
+                        bestWordScore = Math.max(bestWordScore, 0.8);
+                    }
+                    // Check if word1 is missing first 1-2 characters
+                    if (word1.length >= 3 && word2.length >= word1.length) {
+                        for (let i = 1; i <= 2; i++) {
+                            if (word2.substring(i) === word1) {
+                                bestWordScore = Math.max(bestWordScore, 0.9 - (i * 0.1));
+                            }
+                        }
+                    }
+                    // Check for common speech recognition substitutions
+                    const substitutions = {
+                        'pple': 'apple',
+                        'lmond': 'almond',
+                        'pricot': 'apricot',
+                        'ashew': 'cashew'
+                    };
+                    if (substitutions[word1] === word2) {
+                        bestWordScore = Math.max(bestWordScore, 0.95);
+                    }
+                });
+                totalScore += bestWordScore;
+                if (bestWordScore > 0) matchCount++;
+            });
+            
+            return matchCount > 0 ? totalScore / words1.length : 0;
+        }
+
+        function calculateAdvancedSimilarity(str1, str2) {
+            // Normalize strings
+            str1 = str1.toLowerCase().trim();
+            str2 = str2.toLowerCase().trim();
+            
+            if (str1 === str2) return 1.0;
+            if (str1.length === 0 || str2.length === 0) return 0;
+            
+            // Levenshtein distance
+            const levenshteinScore = 1 - (levenshteinDistance(str1, str2) / Math.max(str1.length, str2.length));
+            
+            // Jaccard similarity (word-based)
+            const words1 = str1.split(/\s+/);
+            const words2 = str2.split(/\s+/);
+            const intersection = words1.filter(word => words2.includes(word));
+            const union = [...new Set([...words1, ...words2])];
+            const jaccardScore = intersection.length / union.length;
+            
+            // Substring matching
+            const substringScore = Math.max(
+                str1.includes(str2) ? str2.length / str1.length : 0,
+                str2.includes(str1) ? str1.length / str2.length : 0
+            );
+            
+            // Common prefix/suffix
+            let commonPrefix = 0;
+            for (let i = 0; i < Math.min(str1.length, str2.length); i++) {
+                if (str1[i] === str2[i]) commonPrefix++;
+                else break;
+            }
+            const prefixScore = commonPrefix / Math.max(str1.length, str2.length);
+            
+            // Weighted combination
+            return (levenshteinScore * 0.4) + (jaccardScore * 0.3) + (substringScore * 0.2) + (prefixScore * 0.1);
+        }
+        
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            
+            return matrix[str2.length][str1.length];
+        }
+        
+        function addProductToCartViaVoice(productId, qualityId, quantity) {
+            $.ajax({
+                url: '{% url "add_to_cart" %}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    product_id: productId,
+                    quality_id: qualityId,
+                    quantity: quantity,
+                    unit: 'kg'
+                }),
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Update cart count
+                    const cartCount = response.cart_count;
+                    if (cartCount > 0) {
+                        $('.btn-primary .badge').text(cartCount).show();
+                    } else {
+                        $('.btn-primary .badge').hide();
+                    }
+                    
+                    // Visual feedback for the added product
+                    const productRow = $(`.product-row`).filter(function() {
+                        return $(this).find(`.quality-select[data-product-id="${productId}"]`).length > 0;
+                    });
+                    
+                    productRow.addClass('table-success');
+                    setTimeout(() => {
+                        productRow.removeClass('table-success');
+                    }, 2000);
+                },
+                error: function(xhr) {
+                    $('#voiceStatusText').text('Error adding to cart: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                }
+            });
+        }
+        
+        $('#searchInput').on('input', function() {
+            clearTimeout(searchTimeout);
+            const searchTerm = $(this).val().toLowerCase();
+            
+            searchTimeout = setTimeout(function() {
+                filterProducts();
+            }, 300);
+        });
+        
+        $('#qualityFilter').on('change', function() {
+            filterProducts();
+        });
+        
+        function filterProducts() {
+            const searchTerm = $('#searchInput').val().toLowerCase();
+            const qualityFilter = $('#qualityFilter').val();
+            
+            $('.product-row').each(function() {
+                const productName = $(this).data('name');
+                const productCategory = $(this).data('category');
+                
+                let showProduct = true;
+                
+                // Search filter
+                if (searchTerm && !productName.includes(searchTerm) && !productCategory.includes(searchTerm)) {
+                    showProduct = false;
+                }
+                
+                // Quality filter
+                if (qualityFilter) {
+                    const qualitySelect = $(this).find('.quality-select');
+                    let hasQuality = false;
+                    qualitySelect.find('option').each(function() {
+                        if ($(this).text().toLowerCase().includes(qualityFilter)) {
+                            hasQuality = true;
+                        }
+                    });
+                    if (!hasQuality) {
+                        showProduct = false;
+                    }
+                }
+                
+                $(this).toggle(showProduct);
+            });
+        }
+        
+        $('.sortable').click(function() {
+            const sortBy = $(this).data('sort');
+            const tbody = $('#productsTableBody');
+            const rows = tbody.find('.product-row').toArray();
+            
+            rows.sort(function(a, b) {
+                let aVal, bVal;
+                
+                if (sortBy === 'name') {
+                    aVal = $(a).find('td:nth-child(2)').text().toLowerCase();
+                    bVal = $(b).find('td:nth-child(2)').text().toLowerCase();
+                } else if (sortBy === 'stock') {
+                    aVal = parseFloat($(a).find('.stock-display').text()) || 0;
+                    bVal = parseFloat($(b).find('.stock-display').text()) || 0;
+                }
+                
+                return aVal > bVal ? 1 : -1;
+            });
+            
+            tbody.empty().append(rows);
+        });
+        
+        $('.quantity-btn-plus').click(function() {
+            const productId = $(this).data('product-id');
+            const quantityInput = $(`.quantity-input[data-product-id="${productId}"]`);
+            let currentValue = parseFloat(quantityInput.val()) || 0;
+            quantityInput.val(currentValue + 1);
+        });
+        
+        $('.quantity-btn-minus').click(function() {
+            const productId = $(this).data('product-id');
+            const quantityInput = $(`.quantity-input[data-product-id="${productId}"]`);
+            let currentValue = parseFloat(quantityInput.val()) || 0;
+            if (currentValue > 0.001) {
+                quantityInput.val(Math.max(0.001, currentValue - 1));
+            }
+        });
+        
+        $('.quality-select').change(function() {
+            const productId = $(this).data('product-id');
+            const selectedOption = $(this).find(':selected');
+            const stock = selectedOption.data('stock');
+            
+            const stockDisplay = $(`.stock-display[data-product-id="${productId}"]`);
+            stockDisplay.text(stock + ' kg');
+            
+            // Highlight low stock
+            if (stock < 50) {
+                stockDisplay.addClass('text-danger fw-bold');
+            } else {
+                stockDisplay.removeClass('text-danger fw-bold');
+            }
+        });
+        
+        $('.add-to-cart-btn').click(function() {
+            const productId = $(this).data('product-id');
+            const qualitySelect = $(`.quality-select[data-product-id="${productId}"]`);
+            const quantityInput = $(`.quantity-input[data-product-id="${productId}"]`);
+            
+            const qualityId = qualitySelect.val();
+            const quantity = parseFloat(quantityInput.val());
+            
+            if (isNaN(quantity) || quantity <= 0) {
+                alert('Please enter a valid quantity');
+                return;
+            }
+            
+            // Send AJAX request to add to cart
+            $.ajax({
+                url: '{% url "add_to_cart" %}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    product_id: productId,
+                    quality_id: qualityId,
+                    quantity: quantity,
+                    unit: 'kg'
+                }),
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Update cart count
+                    const cartCount = response.cart_count;
+                    if (cartCount > 0) {
+                        $('.btn-primary .badge').text(cartCount).show();
+                    } else {
+                        $('.btn-primary .badge').hide();
+                    }
+                    
+                    // Reset quantity input
+                    quantityInput.val(1);
+                    
+                    const button = $(this);
+                    button.removeClass('btn-primary').addClass('btn-success');
+                    button.find('i').removeClass('fa-cart-plus').addClass('fa-check');
+                    setTimeout(function() {
+                        button.removeClass('btn-success').addClass('btn-primary');
+                        button.find('i').removeClass('fa-check').addClass('fa-cart-plus');
+                    }, 1000);
+                }.bind(this),
+                error: function(xhr) {
+                    alert('Error adding to cart: ' + xhr.responseJSON.message);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

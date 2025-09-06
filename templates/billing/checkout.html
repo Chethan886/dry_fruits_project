@@ -1,0 +1,675 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Checkout - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Checkout</h1>
+        <a href="{% url 'view_cart' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Cart
+        </a>
+    </div>
+    
+    <!-- Added credit error alert for insufficient credit limit -->
+    {% if credit_error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Insufficient Credit Limit!</strong><br>
+        Available Credit: <strong>₹{{ available_credit|floatformat:2 }}</strong><br>
+        Required Amount: <strong>₹{{ required_amount|floatformat:2 }}</strong><br>
+        Please reduce the order amount or choose a different payment method.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Enhanced customer search with live typing and inline creation -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Search or Create Customer</label>
+                            <div class="input-group">
+                                <input type="text" id="customerSearch" class="form-control" placeholder="Type customer name or phone number...">
+                                <button type="button" class="btn btn-outline-secondary" id="clearSearchBtn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="searchFeedback" class="mt-2 text-muted small" style="display: none;"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="customerResults" class="mb-3" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Phone</th>
+                                        <th>Type</th>
+                                        <th>Credit Limit</th>
+                                        <th>Pending</th>
+                                        <th>Available</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customerResultsBody">
+                                    <!-- Customer search results will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="createCustomerForm" class="mb-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6 class="mb-3"><i class="fas fa-user-plus me-2"></i>Create New Customer</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <input type="text" id="newCustomerName" class="form-control" placeholder="Customer Name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="tel" id="newCustomerPhone" class="form-control" placeholder="Phone Number" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="email" id="newCustomerEmail" class="form-control" placeholder="Email (optional)">
+                                </div>
+                                <div class="col-md-6">
+                                    <select id="newCustomerType" class="form-select">
+                                        <option value="retail">Retail</option>
+                                        <option value="wholesale">Wholesale</option>
+                                        <option value="broker">Broker</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="number" id="newCustomerCreditLimit" class="form-control" placeholder="Credit Limit" value="0" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-12">
+                                    <textarea id="newCustomerAddress" class="form-control" placeholder="Address (optional)" rows="2"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <button type="button" class="btn btn-primary btn-sm" id="createCustomerBtn">
+                                        <i class="fas fa-save me-2"></i>Create Customer
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="cancelCreateBtn">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="selectedCustomer" class="mb-3" style="display: none;">
+                        <div class="alert alert-success">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1" id="selectedCustomerName"></h5>
+                                    <p class="mb-0" id="selectedCustomerPhone"></p>
+                                    <small class="text-muted" id="selectedCustomerDetails"></small>
+                                    <!-- Added credit status display -->
+                                    <div id="creditStatus" class="mt-2" style="display: none;">
+                                        <span class="badge" id="creditBadge"></span>
+                                        <small id="creditDetails" class="ms-2"></small>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="changeCustomerBtn">
+                                    Change
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Improved Bill Details UI with better spacing and professional layout -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bill Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="invoiceForm">
+                        {% csrf_token %}
+                        
+                        {{ form.customer_id }}
+                        {{ form.customer_name }}
+                        {{ form.customer_phone }}
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Payment Type <span class="text-danger">*</span></label>
+                                <select name="payment_type" class="form-select" id="id_payment_type" required>
+                                    <option value="">Select Payment Type</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="credit">Credit</option>
+                                </select>
+                            </div>
+                            <!-- Payment due date only shows for UPI and Credit payment types -->
+                            <div class="col-md-6" id="dueDateField" style="display: none;">
+                                <label class="form-label fw-bold">Payment Due Date</label>
+                                <input type="date" name="payment_due_date" class="form-control" id="id_payment_due_date">
+                                <small class="form-text text-muted">Expected date of payment</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <!-- Changed from percentage to flat discount -->
+                                <label class="form-label fw-bold">Flat Discount Amount (₹)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" name="flat_discount" class="form-control" step="0.01" min="0" value="0" id="id_flat_discount">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tax Percentage (%)</label>
+                                <div class="input-group">
+                                    <input type="number" name="tax_percentage" class="form-control" step="0.01" min="0" max="100" value="0" id="id_tax_percentage">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <label class="form-label fw-bold">Notes</label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes..." id="id_notes"></textarea>
+                        </div>
+                        
+                        <!-- Added credit validation warning -->
+                        <div id="creditWarning" class="alert alert-warning mt-3" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Credit Limit Warning:</strong>
+                            <div id="creditWarningText"></div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <button type="submit" class="btn btn-success btn-lg px-4" id="submitBtn" disabled>
+                                <i class="fas fa-file-invoice-dollar me-2"></i> Create Bill
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Order Summary</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cart %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.product_name }}</strong><br>
+                                        <small class="text-muted">{{ item.quality_name }}</small>
+                                    </td>
+                                    <td>{{ item.quantity }} kg</td>
+                                    <td class="text-end">₹{{ item.subtotal|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="2" class="text-end fw-bold">Subtotal:</td>
+                                    <td class="text-end fw-bold">₹{{ subtotal|floatformat:2 }}</td>
+                                </tr>
+                                <tr id="discountRow" style="display: none;">
+                                    <td colspan="2" class="text-end">Discount:</td>
+                                    <td class="text-end text-success fw-bold" id="discountDisplay">-₹0.00</td>
+                                </tr>
+                                <tr id="taxRow" style="display: none;">
+                                    <td colspan="2" class="text-end">Tax:</td>
+                                    <td class="text-end text-warning fw-bold" id="taxDisplay">+₹0.00</td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td colspan="2" class="text-end fw-bold fs-5">Total:</td>
+                                    <td class="text-end fw-bold fs-5" id="totalDisplay">₹{{ subtotal|floatformat:2 }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-white">
+                    <a href="{% url 'view_cart' %}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-edit me-2"></i> Edit Cart
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        let searchTimeout;
+        let selectedCustomerData = null;
+        const subtotal = {{ subtotal }};
+        
+        $('#id_payment_type').change(function() {
+            const paymentType = $(this).val();
+            if (paymentType === 'upi' || paymentType === 'credit') {
+                $('#dueDateField').show();
+                $('#id_payment_due_date').prop('required', true);
+            } else {
+                $('#dueDateField').hide();
+                $('#id_payment_due_date').prop('required', false);
+            }
+            
+            checkCreditLimit();
+        });
+        
+        $('#customerSearch').on('input', function() {
+            clearTimeout(searchTimeout);
+            const query = $(this).val().trim();
+            
+            if (query.length === 0) {
+                $('#customerResults').hide();
+                $('#createCustomerForm').hide();
+                $('#searchFeedback').hide();
+                $('#clearSearchBtn').hide();
+                return;
+            }
+            
+            $('#clearSearchBtn').show();
+            
+            if (query.length < 2) {
+                $('#searchFeedback').text('Type at least 2 characters to search...').show();
+                $('#customerResults').hide();
+                $('#createCustomerForm').hide();
+                return;
+            }
+            
+            $('#searchFeedback').text('Searching...').show();
+            
+            searchTimeout = setTimeout(function() {
+                performCustomerSearch(query);
+            }, 300);
+        });
+        
+        $('#clearSearchBtn').click(function() {
+            $('#customerSearch').val('').focus();
+            $('#customerResults').hide();
+            $('#createCustomerForm').hide();
+            $('#searchFeedback').hide();
+            $(this).hide();
+        });
+        
+        function performCustomerSearch(query) {
+            $.ajax({
+                url: '{% url "customer_search_api" %}',
+                data: { q: query },
+                dataType: 'json',
+                success: function(data) {
+                    console.log('[v0] Customer search response received:', data);
+                    const customers = data.customers || [];
+                    $('#searchFeedback').hide();
+                    
+                    if (customers.length === 0) {
+                        $('#customerResultsBody').html('<tr><td colspan="7" class="text-center text-muted">No customers found</td></tr>');
+                        $('#customerResults').show();
+                        
+                        // Show create customer form with pre-filled data
+                        if (/^\d+$/.test(query)) {
+                            $('#newCustomerPhone').val(query);
+                            $('#newCustomerName').val('').focus();
+                        } else {
+                            $('#newCustomerName').val(query);
+                            $('#newCustomerPhone').val('').focus();
+                        }
+                        $('#createCustomerForm').show();
+                    } else {
+                        let html = '';
+                        customers.forEach(function(customer) {
+                            console.log('[v0] Processing customer for display:', customer.name);
+                            console.log('[v0] Customer credit_limit:', customer.credit_limit);
+                            console.log('[v0] Customer pending_amount:', customer.pending_amount);
+                            console.log('[v0] Customer available_credit:', customer.available_credit);
+                            
+                            const availableCredit = parseFloat(customer.available_credit || 0);
+                            const creditLimit = parseFloat(customer.credit_limit || 0);
+                            const pendingAmount = parseFloat(customer.pending_amount || 0);
+                            const creditClass = availableCredit < 0 ? 'text-danger' : 'text-success';
+                            
+                            console.log('[v0] Parsed values - Available:', availableCredit, 'Limit:', creditLimit, 'Pending:', pendingAmount);
+                            
+                            html += `
+                                <tr class="customer-row" style="cursor: pointer;">
+                                    <td><strong>${customer.name}</strong></td>
+                                    <td>${customer.phone}</td>
+                                    <td><span class="badge bg-secondary">${customer.customer_type}</span></td>
+                                    <td>₹${creditLimit.toFixed(2)}</td>
+                                    <td>₹${pendingAmount.toFixed(2)}</td>
+                                    <td class="${creditClass}">₹${availableCredit.toFixed(2)}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-primary select-customer" 
+                                            data-id="${customer.id}" 
+                                            data-name="${customer.name}" 
+                                            data-phone="${customer.phone}"
+                                            data-type="${customer.customer_type}"
+                                            data-credit="${creditLimit}"
+                                            data-pending="${pendingAmount}"
+                                            data-available="${availableCredit}"
+                                            data-exceeded="${customer.credit_exceeded || false}">
+                                            <i class="fas fa-check me-1"></i>Select
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        $('#customerResultsBody').html(html);
+                        $('#customerResults').show();
+                        $('#createCustomerForm').hide();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('[v0] Customer search error:', error);
+                    $('#searchFeedback').text('Error searching customers. Please try again.').addClass('text-danger').show();
+                    $('#customerResults').hide();
+                    $('#createCustomerForm').hide();
+                }
+            });
+        }
+        
+        $('#createCustomerBtn').click(function() {
+            const name = $('#newCustomerName').val().trim();
+            const phone = $('#newCustomerPhone').val().trim();
+            const email = $('#newCustomerEmail').val().trim();
+            const customerType = $('#newCustomerType').val();
+            const creditLimit = parseFloat($('#newCustomerCreditLimit').val()) || 0;
+            const address = $('#newCustomerAddress').val().trim();
+            
+            if (!name || !phone) {
+                alert('Please enter customer name and phone number');
+                return;
+            }
+            
+            $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Creating...');
+            
+            $.ajax({
+                url: '{% url "customer_create_api" %}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    name: name,
+                    phone: phone,
+                    email: email,
+                    customer_type: customerType,
+                    credit_limit: creditLimit,
+                    address: address
+                }),
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    const customer = response.customer;
+                    selectCustomer(customer.id, customer.name, customer.phone, customer.customer_type, customer.credit_limit, 0, customer.credit_limit, false);
+                    $('#createCustomerForm').hide();
+                    $('#customerResults').hide();
+                    $('#customerSearch').val('');
+                    $('#clearSearchBtn').hide();
+                },
+                error: function(xhr) {
+                    alert('Error creating customer: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                },
+                complete: function() {
+                    $('#createCustomerBtn').prop('disabled', false).html('<i class="fas fa-save me-2"></i>Create Customer');
+                }
+            });
+        });
+        
+        // Cancel create customer
+        $('#cancelCreateBtn').click(function() {
+            $('#createCustomerForm').hide();
+            $('#customerSearch').val('').focus();
+            $('#clearSearchBtn').hide();
+        });
+        
+        $(document).on('click', '.select-customer', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const id = $(this).data('id');
+            const name = $(this).data('name');
+            const phone = $(this).data('phone');
+            const type = $(this).data('type');
+            const credit = parseFloat($(this).data('credit') || 0);
+            const pending = parseFloat($(this).data('pending') || 0);
+            const available = parseFloat($(this).data('available') || 0);
+            const exceeded = $(this).data('exceeded') || false;
+            
+            console.log('[v0] Selecting customer:', { id, name, phone, type, credit, pending, available });
+            
+            selectCustomer(id, name, phone, type, credit, pending, available, exceeded);
+        });
+        
+        $(document).on('click', '.customer-row', function(e) {
+            if (!$(e.target).hasClass('select-customer')) {
+                $(this).find('.select-customer').click();
+            }
+        });
+        
+        function selectCustomer(id, name, phone, type, credit, pending, available, exceeded) {
+            console.log('[v0] Setting selected customer data:', { id, name, phone, type, credit, pending, available });
+            
+            selectedCustomerData = {
+                id: id,
+                name: name,
+                phone: phone,
+                type: type,
+                credit: credit,
+                pending: pending,
+                available: available,
+                exceeded: exceeded
+            };
+            
+            // Set form values
+            $('#id_customer_id').val(id);
+            $('#id_customer_name').val(name);
+            $('#id_customer_phone').val(phone);
+            
+            // Update display
+            $('#selectedCustomerName').text(name);
+            $('#selectedCustomerPhone').text(phone);
+            $('#selectedCustomerDetails').text(`${type} | Credit: ₹${credit.toFixed(2)} | Pending: ₹${pending.toFixed(2)}`);
+            
+            // Show credit status if applicable
+            if (credit > 0) {
+                const creditBadge = $('#creditBadge');
+                const creditDetails = $('#creditDetails');
+                
+                if (exceeded || available < 0) {
+                    creditBadge.removeClass().addClass('badge bg-danger').text('Credit Exceeded');
+                    creditDetails.text(`Available: ₹${available.toFixed(2)}`);
+                } else if (available < 1000) {
+                    creditBadge.removeClass().addClass('badge bg-warning').text('Low Credit');
+                    creditDetails.text(`Available: ₹${available.toFixed(2)}`);
+                } else {
+                    creditBadge.removeClass().addClass('badge bg-success').text('Good Credit');
+                    creditDetails.text(`Available: ₹${available.toFixed(2)}`);
+                }
+                $('#creditStatus').show();
+            } else {
+                $('#creditStatus').hide();
+            }
+            
+            // Hide search results and show selected customer
+            $('#customerResults').hide();
+            $('#createCustomerForm').hide();
+            $('#selectedCustomer').show();
+            $('#customerSearch').val('');
+            $('#clearSearchBtn').hide();
+            
+            // Enable submit button
+            $('#submitBtn').prop('disabled', false);
+            
+            // Check credit limit
+            checkCreditLimit();
+        }
+        
+        // Change customer
+        $('#changeCustomerBtn').click(function() {
+            $('#selectedCustomer').hide();
+            $('#customerSearch').val('').focus();
+            
+            // Clear selected customer
+            selectedCustomerData = null;
+            $('#id_customer_id').val('');
+            $('#id_customer_name').val('');
+            $('#id_customer_phone').val('');
+            
+            // Hide credit warning
+            $('#creditWarning').hide();
+            
+            // Disable submit button
+            $('#submitBtn').prop('disabled', true);
+        });
+        
+        function checkCreditLimit() {
+            const paymentType = $('#id_payment_type').val();
+            
+            // If payment type is not credit, reset button to normal state
+            if (paymentType !== 'credit') {
+                $('#creditWarning').hide();
+                if (selectedCustomerData) {
+                    $('#submitBtn').prop('disabled', false).removeClass('btn-danger').addClass('btn-success').html('<i class="fas fa-file-invoice-dollar me-2"></i> Create Bill');
+                } else {
+                    $('#submitBtn').prop('disabled', true).removeClass('btn-danger').addClass('btn-success').html('<i class="fas fa-file-invoice-dollar me-2"></i> Create Bill');
+                }
+                return;
+            }
+            
+            // Only check credit limit if payment type is credit and customer is selected
+            if (!selectedCustomerData) {
+                $('#creditWarning').hide();
+                $('#submitBtn').prop('disabled', true).removeClass('btn-danger').addClass('btn-success').html('<i class="fas fa-file-invoice-dollar me-2"></i> Create Bill');
+                return;
+            }
+            
+            const discount = parseFloat($('#id_flat_discount').val()) || 0;
+            const taxPercentage = parseFloat($('#id_tax_percentage').val()) || 0;
+            const afterDiscount = Math.max(0, subtotal - discount);
+            const taxAmount = (afterDiscount * taxPercentage) / 100;
+            const total = afterDiscount + taxAmount;
+            
+            const availableCredit = selectedCustomerData.available;
+            
+            if (total > availableCredit) {
+                $('#creditWarningText').html(`
+                    Required Amount: <strong>₹${total.toFixed(2)}</strong><br>
+                    Available Credit: <strong>₹${availableCredit.toFixed(2)}</strong><br>
+                    <span class="text-danger">Insufficient credit by ₹${(total - availableCredit).toFixed(2)}</span>
+                `);
+                $('#creditWarning').show();
+                $('#submitBtn').prop('disabled', true).removeClass('btn-success').addClass('btn-danger').html('<i class="fas fa-exclamation-triangle me-2"></i> Insufficient Credit');
+            } else {
+                $('#creditWarning').hide();
+                $('#submitBtn').prop('disabled', false).removeClass('btn-danger').addClass('btn-success').html('<i class="fas fa-file-invoice-dollar me-2"></i> Create Bill');
+            }
+        }
+        
+        function updateTotals() {
+            const discount = parseFloat($('#id_flat_discount').val()) || 0;
+            const taxPercentage = parseFloat($('#id_tax_percentage').val()) || 0;
+            
+            const afterDiscount = Math.max(0, subtotal - discount);
+            const taxAmount = (afterDiscount * taxPercentage) / 100;
+            const total = afterDiscount + taxAmount;
+            
+            if (discount > 0) {
+                $('#discountDisplay').text('-₹' + discount.toFixed(2));
+                $('#discountRow').show();
+            } else {
+                $('#discountRow').hide();
+            }
+            
+            if (taxAmount > 0) {
+                $('#taxDisplay').text('+₹' + taxAmount.toFixed(2));
+                $('#taxRow').show();
+            } else {
+                $('#taxRow').hide();
+            }
+            
+            $('#totalDisplay').text('₹' + total.toFixed(2));
+            
+            checkCreditLimit();
+        }
+        
+        $('#id_flat_discount, #id_tax_percentage').on('input', updateTotals);
+        
+        // Form submission
+        $('#invoiceForm').submit(function(e) {
+            console.log('[v0] Form submission started');
+            console.log('[v0] Customer ID:', $('#id_customer_id').val());
+            console.log('[v0] Payment Type:', $('#id_payment_type').val());
+            console.log('[v0] Selected Customer Data:', selectedCustomerData);
+            
+            if (!$('#id_customer_id').val()) {
+                e.preventDefault();
+                console.log('[v0] Form submission blocked - no customer selected');
+                alert('Please select or create a customer before creating a bill.');
+                return false;
+            }
+            
+            if (!$('#id_payment_type').val()) {
+                e.preventDefault();
+                console.log('[v0] Form submission blocked - no payment type selected');
+                alert('Please select a payment type.');
+                return false;
+            }
+            
+            if (!$('#id_tax_percentage').val()) {
+                $('#id_tax_percentage').val('0');
+            }
+            
+            if (!$('input[name="discount_percentage"]').length) {
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'discount_percentage',
+                    value: '0'
+                }).appendTo('#invoiceForm');
+            }
+            
+            console.log('[v0] Added required fields - discount_percentage: 0, tax_percentage:', $('#id_tax_percentage').val());
+            
+            if ($('#id_payment_type').val() === 'credit' && selectedCustomerData) {
+                const discount = parseFloat($('#id_flat_discount').val()) || 0;
+                const taxPercentage = parseFloat($('#id_tax_percentage').val()) || 0;
+                const afterDiscount = Math.max(0, subtotal - discount);
+                const taxAmount = (afterDiscount * taxPercentage) / 100;
+                const total = afterDiscount + taxAmount;
+                
+                console.log('[v0] Credit validation - Total:', total, 'Available:', selectedCustomerData.available);
+                
+                if (total > selectedCustomerData.available) {
+                    e.preventDefault();
+                    console.log('[v0] Form submission blocked - insufficient credit');
+                    alert('Insufficient credit limit. Please reduce the order amount or choose a different payment method.');
+                    return false;
+                }
+            }
+            
+            console.log('[v0] Form validation passed, submitting form');
+            // Disable button to prevent double submission
+            $('#submitBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Creating...');
+        });
+    });
+</script>
+{% endblock %}

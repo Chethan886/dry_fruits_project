@@ -1,0 +1,473 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Report - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Sales Report</h1>
+        <div>
+            <a href="{% url 'report_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Reports
+            </a>
+        </div>
+    </div>
+    
+    <!-- Filter Form -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-filter me-2"></i> Filter Options
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-3">
+                    <label for="{{ form.date_from.id_for_label }}" class="form-label">From Date</label>
+                    {{ form.date_from }}
+                </div>
+                <div class="col-md-3">
+                    <label for="{{ form.date_to.id_for_label }}" class="form-label">To Date</label>
+                    {{ form.date_to }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ form.grouping.id_for_label }}" class="form-label">Group By</label>
+                    {{ form.grouping }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ form.payment_type.id_for_label }}" class="form-label">Payment Type</label>
+                    {{ form.payment_type }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ form.customer.id_for_label }}" class="form-label">Customer</label>
+                    {{ form.customer }}
+                </div>
+                <div class="col-12 d-flex justify-content-between">
+                    <div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'sales_report' %}" class="btn btn-secondary ms-2">
+                            <i class="fas fa-undo me-2"></i> Reset
+                        </a>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <a href="?quick_filter=today" class="btn btn-outline-secondary">Today</a>
+                        <a href="?quick_filter=yesterday" class="btn btn-outline-secondary">Yesterday</a>
+                        <a href="?quick_filter=this_week" class="btn btn-outline-secondary">This Week</a>
+                        <a href="?quick_filter=this_month" class="btn btn-outline-secondary">This Month</a>
+                        <a href="?quick_filter=last_month" class="btn btn-outline-secondary">Last Month</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Bills</h6>
+                            <h3 class="mb-0">{{ total_bills }}</h3>
+                        </div>
+                        <div class="bg-light-subtle p-3 rounded">
+                            <i class="fas fa-file-invoice fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Sales</h6>
+                            <h3 class="mb-0">₹{{ total_sales|floatformat:2 }}</h3>
+                        </div>
+                        <div class="bg-light-subtle p-3 rounded">
+                            <i class="fas fa-rupee-sign fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Date Range</h6>
+                            <h5 class="mb-0">{{ date_range_display }}</h5>
+                        </div>
+                        <div class="bg-light-subtle p-3 rounded">
+                            <i class="fas fa-calendar-alt fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts -->
+    <div class="row mb-4">
+        <div class="col-md-8 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sales Trend</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" id="viewTotal">Total</button>
+                        <button type="button" class="btn btn-outline-secondary" id="viewByType">By Payment Type</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if table_data %}
+                        <div id="salesChart" style="height: 300px; width: 100%;"></div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-chart-line fa-3x mb-3"></i>
+                            <p>No sales data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Payment Mode Split</h5>
+                </div>
+                <div class="card-body">
+                    {% if total_cash > 0 or total_upi > 0 or total_credit > 0 %}
+                        <div id="paymentPieChart" style="height: 300px; width: 100%;"></div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                            <p>No payment data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Table -->
+    <div class="card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Sales Data</h5>
+            <form method="post" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="date_from" value="{{ start_date|date:'Y-m-d' }}">
+                <input type="hidden" name="date_to" value="{{ end_date|date:'Y-m-d' }}">
+                <input type="hidden" name="grouping" value="{{ form.grouping.value }}">
+                <input type="hidden" name="payment_type" value="{{ form.payment_type.value }}">
+                <input type="hidden" name="customer" value="{{ form.customer.value }}">
+                <button type="submit" name="export" class="btn btn-sm btn-outline-success">
+                    <i class="fas fa-download me-2"></i> Export to Excel
+                </button>
+            </form>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="salesTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th class="text-center">Bills Generated</th>
+                            <th class="text-end">Total Sale (₹)</th>
+                            <th class="text-end">Cash (₹)</th>
+                            <th class="text-end">UPI/Card (₹)</th>
+                            <th class="text-end">Credit (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in table_data %}
+                        <tr>
+                            <td>{{ entry.date }}</td>
+                            <td class="text-center">{{ entry.bills }}</td>
+                            <td class="text-end">{{ entry.total_sale|floatformat:2 }}</td>
+                            <td class="text-end">{{ entry.cash_sale|floatformat:2 }}</td>
+                            <td class="text-end">{{ entry.upi_sale|floatformat:2 }}</td>
+                            <td class="text-end">{{ entry.credit_sale|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-dark fw-bold">
+                            <td>Total</td>
+                            <td class="text-center">{{ total_bills }}</td>
+                            <td class="text-end">{{ total_sales|floatformat:2 }}</td>
+                            <td class="text-end">{{ total_cash|floatformat:2 }}</td>
+                            <td class="text-end">{{ total_upi|floatformat:2 }}</td>
+                            <td class="text-end">{{ total_credit|floatformat:2 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if table_data %}
+            // Prepare data for charts
+            const dates = [{% for entry in table_data %}'{{ entry.date }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const totalSales = [{% for entry in table_data %}{{ entry.total_sale }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const cashSales = [{% for entry in table_data %}{{ entry.cash_sale }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const upiSales = [{% for entry in table_data %}{{ entry.upi_sale }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const creditSales = [{% for entry in table_data %}{{ entry.credit_sale }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            
+            // Line chart options
+            const lineChartOptions = {
+                series: [{
+                    name: 'Total Sales',
+                    data: totalSales
+                }],
+                chart: {
+                    height: 300,
+                    type: 'line',
+                    zoom: {
+                        enabled: true
+                    },
+                    toolbar: {
+                        show: true,
+                        tools: {
+                            download: true,
+                            selection: true,
+                            zoom: true,
+                            zoomin: true,
+                            zoomout: true,
+                            pan: true,
+                            reset: true
+                        }
+                    },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 800
+                    }
+                },
+                stroke: {
+                    curve: 'smooth',
+                    width: 3
+                },
+                colors: ['#4e73df'],
+                fill: {
+                    type: 'gradient',
+                    gradient: {
+                        shade: 'light',
+                        type: "vertical",
+                        shadeIntensity: 0.5,
+                        gradientToColors: ['#2e59d9'],
+                        inverseColors: false,
+                        opacityFrom: 0.7,
+                        opacityTo: 0.2,
+                        stops: [0, 100]
+                    }
+                },
+                markers: {
+                    size: 4,
+                    colors: ['#4e73df'],
+                    strokeColors: '#fff',
+                    strokeWidth: 2,
+                    hover: {
+                        size: 7
+                    }
+                },
+                xaxis: {
+                    categories: dates,
+                    labels: {
+                        style: {
+                            fontSize: '12px'
+                        }
+                    },
+                    title: {
+                        text: 'Date'
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Sales (₹)'
+                    },
+                    labels: {
+                        formatter: function(val) {
+                            return '₹' + val.toFixed(2);
+                        }
+                    }
+                },
+                tooltip: {
+                    y: {
+                        formatter: function(val) {
+                            return '₹' + val.toFixed(2);
+                        }
+                    }
+                },
+                grid: {
+                    borderColor: '#e7e7e7',
+                    row: {
+                        colors: ['#f3f3f3', 'transparent'],
+                        opacity: 0.5
+                    }
+                },
+                legend: {
+                    position: 'bottom',
+                    horizontalAlign: 'center',
+                    offsetY: 8,
+                    itemMargin: {
+                        horizontal: 10,
+                        vertical: 5
+                    }
+                }
+            };
+            
+            // Initialize line chart
+            const salesChart = new ApexCharts(document.querySelector("#salesChart"), lineChartOptions);
+            salesChart.render();
+            
+            // Payment type chart options
+            const multiLineChartOptions = {
+                series: [{
+                    name: 'Cash',
+                    data: cashSales
+                }, {
+                    name: 'UPI/Card',
+                    data: upiSales
+                }, {
+                    name: 'Credit',
+                    data: creditSales
+                }],
+                chart: {
+                    height: 300,
+                    type: 'line',
+                    zoom: {
+                        enabled: true
+                    },
+                    toolbar: {
+                        show: true
+                    },
+                    animations: {
+                        enabled: true
+                    }
+                },
+                colors: ['#1cc88a', '#6f42c1', '#f6c23e'],
+                stroke: {
+                    width: [3, 3, 3],
+                    curve: 'smooth'
+                },
+                markers: {
+                    size: 4
+                },
+                xaxis: {
+                    categories: dates,
+                    title: {
+                        text: 'Date'
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Sales (₹)'
+                    },
+                    labels: {
+                        formatter: function(val) {
+                            return '₹' + val.toFixed(2);
+                        }
+                    }
+                },
+                tooltip: {
+                    y: {
+                        formatter: function(val) {
+                            return '₹' + val.toFixed(2);
+                        }
+                    }
+                },
+                legend: {
+                    position: 'bottom',
+                    horizontalAlign: 'center',
+                    offsetY: 8,
+                    itemMargin: {
+                        horizontal: 10,
+                        vertical: 5
+                    }
+                }
+            };
+            
+            // Payment mode pie chart
+            const pieChartOptions = {
+                series: [{{ total_cash }}, {{ total_upi }}, {{ total_credit }}],
+                chart: {
+                    type: 'donut',
+                    height: 300
+                },
+                labels: ['Cash', 'UPI/Card', 'Credit'],
+                colors: ['#1cc88a', '#6f42c1', '#f6c23e'],
+                legend: {
+                    position: 'bottom'
+                },
+                responsive: [{
+                    breakpoint: 480,
+                    options: {
+                        chart: {
+                            width: 200
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }],
+                tooltip: {
+                    y: {
+                        formatter: function(val) {
+                            return '₹' + val.toFixed(2);
+                        }
+                    }
+                },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            labels: {
+                                show: true,
+                                total: {
+                                    showAlways: true,
+                                    show: true,
+                                    formatter: function (w) {
+                                        return '₹' + w.globals.seriesTotals.reduce((a, b) => a + b, 0).toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+            // Initialize pie chart
+            const paymentPieChart = new ApexCharts(document.querySelector("#paymentPieChart"), pieChartOptions);
+            paymentPieChart.render();
+            
+            // Toggle between total and by payment type views
+            document.getElementById('viewTotal').addEventListener('click', function() {
+                this.classList.add('active');
+                document.getElementById('viewByType').classList.remove('active');
+                salesChart.updateOptions(lineChartOptions);
+            });
+            
+            document.getElementById('viewByType').addEventListener('click', function() {
+                this.classList.add('active');
+                document.getElementById('viewTotal').classList.remove('active');
+                salesChart.updateOptions(multiLineChartOptions);
+            });
+        {% endif %}
+    });
+</script>
+{% endblock %}

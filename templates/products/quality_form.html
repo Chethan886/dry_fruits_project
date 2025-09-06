@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">{{ title }}</h1>
+        <a href="{% url 'product_detail' product.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Product
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.quality|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.stock_quantity|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.retail_price|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.wholesale_price|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.broker_price|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i> Save Quality Variant
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Quality Variant Information</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Enter the details for this quality variant of <strong>{{ product.name }}</strong>. Each quality variant can have different prices for different customer types.
+                    </p>
+                    <hr>
+                    <h6 class="fw-bold">Price Guidelines:</h6>
+                    <ul class="text-muted small">
+                        <li><strong>Retail Price:</strong> For individual customers</li>
+                        <li><strong>Wholesale Price:</strong> For bulk buyers (typically lower than retail)</li>
+                        <li><strong>Broker Price:</strong> For intermediaries (typically the lowest)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

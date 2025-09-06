@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">{{ title }}</h1>
+        <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Customers
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.phone|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.email|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.customer_type|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.address|as_crispy_field }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.credit_limit|as_crispy_field }}
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i> Save Customer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Customer Types</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="fw-bold">Retail</h6>
+                        <p class="text-muted small">
+                            Individual customers who purchase in small quantities for personal consumption.
+                        </p>
+                    </div>
+                    <div class="mb-3">
+                        <h6 class="fw-bold">Wholesale</h6>
+                        <p class="text-muted small">
+                            Businesses that purchase in bulk quantities for resale or distribution.
+                        </p>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold">Broker</h6>
+                        <p class="text-muted small">
+                            Intermediaries who facilitate transactions between producers and retailers.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

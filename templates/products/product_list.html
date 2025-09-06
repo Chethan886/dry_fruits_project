@@ -1,0 +1,408 @@
+{% extends 'base.html' %}
+
+{% block title %}Products - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Products</h1>
+        <div>
+            {% if user.is_admin %}
+            <a href="{% url 'price_list_upload' %}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-upload me-2"></i> Upload Price List
+            </a>
+            <a href="{% url 'download_price_list_template' %}" class="btn btn-outline-success me-2">
+                <i class="fas fa-download me-2"></i> Download Current List
+            </a>
+            <a href="{% url 'product_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i> Add Product
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Search and Filter Form -->
+    <!-- Enhanced search form with live filtering -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3" id="searchForm">
+                <div class="col-md-6">
+                    <input type="text" 
+                           name="query" 
+                           id="searchInput"
+                           class="form-control" 
+                           placeholder="Search products by name..." 
+                           value="{{ form.query.value|default:'' }}"
+                           autocomplete="off">
+                </div>
+                <div class="col-md-3">
+                    <select name="quality_filter" id="qualityFilter" class="form-select">
+                        <option value="">All Quality Types</option>
+                        {% for value, display in quality_choices %}
+                        <option value="{{ value }}" {% if current_quality_filter == value %}selected{% endif %}>
+                            {{ display }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm text-primary me-2 d-none" id="searchSpinner" role="status">
+                            <span class="visually-hidden">Searching...</span>
+                        </div>
+                        <span class="text-muted small" id="searchStatus">Type to search...</span>
+                    </div>
+                </div>
+                <!-- Hidden fields to preserve sorting -->
+                <input type="hidden" name="sort" value="{{ current_sort }}">
+                <input type="hidden" name="order" value="{{ current_order }}">
+            </form>
+        </div>
+    </div>
+    
+    <!-- Product Table -->
+    <!-- Replaced card layout with sortable table layout -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <a href="?sort=product__name&order={% if current_sort == 'product__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}" 
+                                   class="text-decoration-none text-dark">
+                                    Product Name
+                                    {% if current_sort == 'product__name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=quality&order={% if current_sort == 'quality' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}" 
+                                   class="text-decoration-none text-dark">
+                                    Quality
+                                    {% if current_sort == 'quality' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=retail_price&order={% if current_sort == 'retail_price' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}" 
+                                   class="text-decoration-none text-dark">
+                                    Retail Price (₹/kg)
+                                    {% if current_sort == 'retail_price' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=wholesale_price&order={% if current_sort == 'wholesale_price' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}" 
+                                   class="text-decoration-none text-dark">
+                                    Wholesale Price (₹/kg)
+                                    {% if current_sort == 'wholesale_price' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=broker_price&order={% if current_sort == 'broker_price' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}" 
+                                   class="text-decoration-none text-dark">
+                                    Broker Price (₹/kg)
+                                    {% if current_sort == 'broker_price' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=stock_quantity&order={% if current_sort == 'stock_quantity' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}" 
+                                   class="text-decoration-none text-dark">
+                                    Stock (kg)
+                                    {% if current_sort == 'stock_quantity' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product_quality in page_obj %}
+                        <tr {% if product_quality.stock_quantity < 50 %}class="table-danger"{% endif %}>
+                            <td>
+                                <strong>{{ product_quality.product.name }}</strong>
+                                {% if product_quality.product.description %}
+                                <br><small class="text-muted">{{ product_quality.product.description|truncatechars:50 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ product_quality.get_quality_display }}</span>
+                            </td>
+                            <td>₹{{ product_quality.retail_price }}</td>
+                            <td>₹{{ product_quality.wholesale_price }}</td>
+                            <td>₹{{ product_quality.broker_price }}</td>
+                            <td>
+                                {% if product_quality.stock_quantity < 50 %}
+                                <span class="text-danger fw-bold">{{ product_quality.stock_quantity }}</span>
+                                <small class="text-danger d-block">Low Stock!</small>
+                                {% else %}
+                                {{ product_quality.stock_quantity }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'product_detail' product_quality.product.id %}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if user.is_admin %}
+                                    <a href="{% url 'quality_update' product_quality.id %}" 
+                                       class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i> No products found.
+                                    {% if user.is_admin %}
+                                    <div class="mt-3">
+                                        <a href="{% url 'product_create' %}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-plus me-2"></i> Add Product
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="First">
+                    <span aria-hidden="true">&laquo;&laquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="First">
+                    <span aria-hidden="true">&laquo;&laquo;</span>
+                </a>
+            </li>
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if form.query.value %}&query={{ form.query.value }}{% endif %}{% if current_quality_filter %}&quality_filter={{ current_quality_filter }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="Last">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="Last">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+    <!-- Summary Info -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} products
+                {% if current_quality_filter %} (filtered by {{ current_quality_filter|title }}){% endif %}
+                <span class="text-danger ms-3">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Red highlighted rows indicate low stock (&lt; 50kg)
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Added JavaScript for live search functionality -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const qualityFilter = document.getElementById('qualityFilter');
+    const searchForm = document.getElementById('searchForm');
+    const searchSpinner = document.getElementById('searchSpinner');
+    const searchStatus = document.getElementById('searchStatus');
+    
+    let searchTimeout;
+    
+    function performLiveSearch() {
+        // Clear existing timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        const cursorPosition = searchInput.selectionStart;
+        const hadFocus = document.activeElement === searchInput;
+        
+        // Show loading state
+        searchSpinner.classList.remove('d-none');
+        searchStatus.textContent = 'Searching...';
+        
+        // Set timeout for search (300ms delay to avoid too many requests)
+        searchTimeout = setTimeout(function() {
+            // Get current URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Update search parameters
+            const searchValue = searchInput.value.trim();
+            const qualityValue = qualityFilter.value;
+            
+            if (searchValue) {
+                urlParams.set('query', searchValue);
+            } else {
+                urlParams.delete('query');
+            }
+            
+            if (qualityValue) {
+                urlParams.set('quality_filter', qualityValue);
+            } else {
+                urlParams.delete('quality_filter');
+            }
+            
+            // Reset to first page when searching
+            urlParams.delete('page');
+            
+            // Preserve sorting
+            if (!urlParams.has('sort')) {
+                urlParams.set('sort', '{{ current_sort|default:"product__name" }}');
+            }
+            if (!urlParams.has('order')) {
+                urlParams.set('order', '{{ current_order|default:"asc" }}');
+            }
+            
+            if (hadFocus) {
+                sessionStorage.setItem('searchInputFocus', 'true');
+                sessionStorage.setItem('searchInputCursor', cursorPosition.toString());
+            }
+            
+            // Navigate to new URL
+            const newUrl = window.location.pathname + '?' + urlParams.toString();
+            window.location.href = newUrl;
+            
+        }, 300);
+    }
+    
+    if (sessionStorage.getItem('searchInputFocus') === 'true') {
+        searchInput.focus();
+        const cursorPos = parseInt(sessionStorage.getItem('searchInputCursor') || '0');
+        searchInput.setSelectionRange(cursorPos, cursorPos);
+        sessionStorage.removeItem('searchInputFocus');
+        sessionStorage.removeItem('searchInputCursor');
+    }
+    
+    // Add event listeners for live search
+    searchInput.addEventListener('input', function() {
+        if (this.value.length === 0 || this.value.length >= 2) {
+            performLiveSearch();
+        } else {
+            searchStatus.textContent = 'Type at least 2 characters...';
+            searchSpinner.classList.add('d-none');
+        }
+    });
+    
+    qualityFilter.addEventListener('change', function() {
+        performLiveSearch();
+    });
+    
+    // Prevent form submission on enter key
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        performLiveSearch();
+    });
+    
+    // Update status based on current search
+    const currentQuery = searchInput.value.trim();
+    if (currentQuery) {
+        searchStatus.textContent = `Showing results for "${currentQuery}"`;
+    } else {
+        searchStatus.textContent = 'Type to search...';
+    }
+});
+</script>
+{% endblock %}

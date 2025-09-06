@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Customers - Dry Fruits Business{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Customers</h1>
+        <!-- Removed Add Customer button -->
+    </div>
+    
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="customerSearch" class="form-control" placeholder="Search by name or phone...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="customerTypeFilter" class="form-select">
+                        <option value="">All Customer Types</option>
+                        <option value="retail">Retail</option>
+                        <option value="wholesale">Wholesale</option>
+                        <option value="broker">Broker</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="creditStatusFilter" class="form-select">
+                        <option value="">All Credit Status</option>
+                        <option value="exceeded">Credit Limit Exceeded</option>
+                        <option value="normal">Normal</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Customer List -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Customer Type</th>
+                            <th>Credit Limit</th>
+                            <th>Pending Amount</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in customers %}
+                        <tr>
+                            <td>{{ customer.name }}</td>
+                            <td>{{ customer.phone }}</td>
+                            <td>{{ customer.get_customer_type_display }}</td>
+                            <td>₹{{ customer.credit_limit }}</td>
+                            <td>₹{{ customer.pending_amount }}</td>
+                            <td>
+                                {% if customer.pending_amount > customer.credit_limit %}
+                                <span class="badge bg-danger">Limit Exceeded</span>
+                                {% else %}
+                                <span class="badge bg-success">Normal</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'customer_detail' customer.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'customer_update' customer.id %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'invoice_create' %}?customer_id={{ customer.id }}" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-file-invoice"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <p class="text-muted mb-0">No customers found</p>
+                                <!-- Removed Add Customer button from empty state -->
+                                <p class="text-muted mt-2 small">Customers are created automatically during billing process</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Search and filter functionality
+    $(document).ready(function() {
+        $("#customerSearch").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("table tbody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+        });
+        
+        $("#customerTypeFilter").on("change", function() {
+            var value = $(this).val().toLowerCase();
+            if (value === "") {
+                $("table tbody tr").show();
+            } else {
+                $("table tbody tr").filter(function() {
+                    return $(this).children("td:nth-child(3)").text().toLowerCase().indexOf(value) > -1;
+                }).show();
+                $("table tbody tr").filter(function() {
+                    return $(this).children("td:nth-child(3)").text().toLowerCase().indexOf(value) === -1;
+                }).hide();
+            }
+        });
+        
+        $("#creditStatusFilter").on("change", function() {
+            var value = $(this).val().toLowerCase();
+            if (value === "") {
+                $("table tbody tr").show();
+            } else if (value === "exceeded") {
+                $("table tbody tr").filter(function() {
+                    return $(this).find("span.badge").text() === "Limit Exceeded";
+                }).show();
+                $("table tbody tr").filter(function() {
+                    return $(this).find("span.badge").text() !== "Limit Exceeded";
+                }).hide();
+            } else {
+                $("table tbody tr").filter(function() {
+                    return $(this).find("span.badge").text() === "Normal";
+                }).show();
+                $("table tbody tr").filter(function() {
+                    return $(this).find("span.badge").text() !== "Normal";
+                }).hide();
+            }
+        });
+    });
+</script>
+{% endblock %}
