@@ -12,24 +12,20 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
-import dj_database_url  # Import dj-database-url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --- SECURITY SETTINGS (MODIFIED FOR PRODUCTION) ---
+# --- SECURITY SETTINGS (FOR LOCAL DEVELOPMENT) ---
 
-# SECRET_KEY should be set in your Railway environment variables for security.
-SECRET_KEY = os.environ.get('SECRET_KEY')
+# SECURITY WARNING: keep the secret key used in production secret!
+# You can use any string here for local development.
+SECRET_KEY = 'django-insecure-your-local-secret-key-here'
 
-# DEBUG should be False in production. It reads from an environment variable.
-# It defaults to False if the DEBUG variable is not set.
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
 
-# ALLOWED_HOSTS should be set in your Railway environment variables.
-# e.g., 'your-app-name.up.railway.app,www.yourdomain.com'
-# The default '.railway.app' is a safe starting point for Railway deployments.
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '.railway.app').split(',')
+ALLOWED_HOSTS = []
 
 
 # --- APPLICATION DEFINITION ---
@@ -40,7 +36,6 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic',  # Add Whitenoise for static files
     'django.contrib.staticfiles',
     
     # Third-party apps
@@ -58,7 +53,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add Whitenoise middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -72,7 +66,7 @@ ROOT_URLCONF = 'dry_fruits_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # Using pathlib for consistency
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -88,15 +82,21 @@ TEMPLATES = [
 WSGI_APPLICATION = 'dry_fruits_project.wsgi.application'
 
 
-# --- DATABASE (MODIFIED FOR RAILWAY) ---
+# --- DATABASE (FOR LOCAL DEVELOPMENT) ---
 
-# This configuration reads the DATABASE_URL environment variable provided by Railway.
-# Ensure you have a database service (like PostgreSQL or MySQL) attached to your Railway project.
+# Using local MySQL (XAMPP) as configured previously.
 DATABASES = {
-    'default': dj_database_url.config(
-        conn_max_age=600,
-        ssl_require=False  # Railway's private networking handles security
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'dry_fruits_db',
+        'USER': 'root',
+        'PASSWORD': 'dead1234pool',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+    }
 }
 
 
@@ -118,21 +118,16 @@ USE_I18N = True
 USE_TZ = True
 
 
-# --- STATIC & MEDIA FILES (MODIFIED FOR PRODUCTION) ---
+# --- STATIC & MEDIA FILES (FOR LOCAL DEVELOPMENT) ---
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+# STATIC_ROOT is generally not needed for local development with `runserver`
+# but it is good practice to have it defined.
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Use Whitenoise to serve compressed and cached static files efficiently
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-# IMPORTANT: Railway has an ephemeral filesystem. This means any files you upload
-# to MEDIA_ROOT will be DELETED on the next deploy. For persistent file storage,
-# you should use a service like Amazon S3, Google Cloud Storage, or Cloudinary.
-# The `django-storages` library can help with this.
 
 
 # --- DEFAULT PRIMARY KEY FIELD TYPE ---
