@@ -1,84 +1,77 @@
 # Dry Fruits Business Management System
 
-This is a Django-based application to manage a dry fruits business, including customer management, product and price lists, billing, payments, and reporting.
-
----
+This document outlines the setup and installation instructions for the Dry Fruits Business Management System, a Django-based application.
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
-
-- **Python** (3.10 or higher)
-- **pip** (Python package installer)
-- **MySQL Server**
-
----
+* Python (3.10 or higher)
+* pip (Python package installer)
+* MySQL Server
 
 ## Local Setup and Installation
 
-Follow these steps to get your development environment set up.
+1. **Clone the Repository:**
 
-### 1. Clone the Repository
+   ```bash
+   git clone <your-repository-url>
+   cd dry_fruits_project
+   ```
 
-git clone <your-repository-url>
-cd dry_fruits_project
+2. **Create and Activate a Virtual Environment:**
 
+   **Windows:**
 
-### 2. Create and Activate a Virtual Environment
+   ```bash
+   python -m venv env
+   .\env\Scripts\activate
+   ```
 
-It's highly recommended to use a virtual environment to manage project dependencies.
+   **macOS/Linux:**
 
-**On Windows:**
-python -m venv env
-.\env\Scripts\activate
+   ```bash
+   python3 -m venv env
+   source env/bin/activate
+   ```
 
+3. **Install Dependencies:**
 
-### 3. Install Dependencies
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Install all the required packages from the requirements.txt file.
-pip install -r requirements.txt
+4. **Set Up the MySQL Database:**
 
+   Ensure your MySQL server is running. Create a database:
 
-### 4. Set Up the MySQL Database
+   ```sql
+   CREATE DATABASE dry_fruits_db;
+   ```
 
-- Make sure your MySQL server is running.
-- Open a MySQL client (like MySQL Workbench, DBeaver, or the command-line client).
-- Create a new database for the project.
+   Update `dry_fruits_project/settings.py` if your MySQL credentials (root/dead1234pool) differ.  Default connection is localhost:3306.
 
-CREATE DATABASE dry_fruits_db;
+5. **Run Database Migrations:**
 
+   ```bash
+   python manage.py migrate
+   ```
 
-> The project is configured to connect with the user **root** and password **dead1234pool** to this database on `localhost:3306`.  
-> If your credentials are different, update them in `dry_fruits_project/settings.py`.
+6. **Create a Superuser:**
 
-### 5. Run Database Migrations
+   ```bash
+   python manage.py createsuperuser
+   ```
 
-Apply the database schema to your newly created database.
+   Follow the prompts to create your superuser account.
 
-python manage.py migrate
+7. **Run the Development Server:**
 
+   ```bash
+   python manage.py runserver
+   ```
 
-### 6. Create a Superuser
+   Access the application at http://127.0.0.1:8000/
 
-Create an admin account to access the Django admin panel and the application's admin-level features.
+8. **Accessing the Application:**
 
-python manage.py createsuperuser
-
-
-Follow the prompts to create your superuser account.
-
-### 7. Run the Development Server
-
-You are now ready to run the project!
-
-python manage.py runserver
-
-
-The application will be available at [http://127.0.0.1:8000/](http://127.0.0.1:8000/).
-
----
-
-## Accessing the Application
-
-- **Main Application:** Navigate to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and log in with your superuser credentials.
-- **Django Admin Panel:** Navigate to [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/) to manage the backend models directly.
+   * **Main Application:** http://127.0.0.1:8000/ (login with superuser credentials)
+   * **Django Admin Panel:** http://127.0.0.1:8000/admin/
