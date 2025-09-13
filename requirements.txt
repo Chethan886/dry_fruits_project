@@ -1,11 +1,13 @@
 Django>=5.2,<5.3
-mysqlclient>=2.1.1
+gunicorn
+psycopg2-binary
+dj-database-url
+python-decouple
 django-crispy-forms>=2.0
 crispy-bootstrap5>=0.7
 Pillow>=9.5.0
 reportlab>=4.0.0
 openpyxl>=3.1.2
-gunicorn
 openai-whisper
-dj-database-url # For connecting to Railway's database
 xlwt
+whitenoise
